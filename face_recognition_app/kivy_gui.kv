@@ -1,0 +1,126 @@
+# face_recognition_app/kivy_gui.kv
+
+<MainMenu>:
+    camera_view: camera_view
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 10
+        spacing: 10
+        Image:
+            id: camera_view
+            allow_stretch: True
+            keep_ratio: True
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            spacing: 10
+            Button:
+                text: 'Reconocer Nueva Persona'
+                font_size: 18
+                on_release:
+                    root.manager.current = 'add_person'
+            Button:
+                text: 'Configuración'
+                font_size: 18
+                on_release:
+                    root.manager.current = 'settings'
+
+<AddPersonScreen>:
+    name_input: name_input
+    instructions_label: instructions_label
+    camera_view: camera_view
+    status_label: status_label
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 10
+        spacing: 10
+        TextInput:
+            id: name_input
+            hint_text: 'Ingrese el nombre'
+            font_size: 16
+            size_hint_y: None
+            height: 40
+        Label:
+            id: instructions_label
+            text: 'Coloque su rostro en el recuadro y gire lentamente.'
+            font_size: 14
+            size_hint_y: None
+            height: 30
+        Image:
+            id: camera_view
+            allow_stretch: True
+            keep_ratio: True
+        Label:
+            id: status_label
+            text: ''
+            font_size: 14
+            size_hint_y: None
+            height: 30
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            spacing: 10
+            Button:
+                text: 'Comenzar Captura'
+                font_size: 18
+                on_release:
+                    root.start_capture()
+            Button:
+                text: 'Volver al Menú Principal'
+                font_size: 18
+                on_release:
+                    root.manager.current = 'main_menu'
+
+<SettingsScreen>:
+    user_list: user_list
+    medication_input: medication_input
+    status_label: status_label
+    BoxLayout:
+        orientation: 'vertical'
+        padding: 10
+        spacing: 10
+        Label:
+            text: 'Usuarios Registrados'
+            font_size: 18
+            size_hint_y: None
+            height: 30
+        RecycleView:
+            id: user_list
+            viewclass: 'SelectableLabel'
+            RecycleBoxLayout:
+                default_size: None, 40
+                default_size_hint: 1, None
+                size_hint_y: None
+                height: self.minimum_height
+                orientation: 'vertical'
+        TextInput:
+            id: medication_input
+            hint_text: 'Información del medicamento'
+            font_size: 14
+            size_hint_y: None
+            height: 30
+        Label:
+            id: status_label
+            text: ''
+            font_size: 14
+            size_hint_y: None
+            height: 20
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            spacing: 10
+            Button:
+                text: 'Asignar Medicamento'
+                font_size: 18
+                on_release:
+                    root.assign_medication()
+            Button:
+                text: 'Eliminar Usuario'
+                font_size: 18
+                on_release:
+                    root.delete_user()
+            Button:
+                text: 'Volver al Menú Principal'
+                font_size: 18
+                on_release:
+                    root.manager.current = 'main_menu'

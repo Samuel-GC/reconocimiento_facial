@@ -1,1 +1,0 @@
-# reconocimiento_facial
