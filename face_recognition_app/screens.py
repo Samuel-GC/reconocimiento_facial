@@ -14,6 +14,10 @@ from face_recognition_app.face_recognizer import FaceRecognizer
 from face_recognition_app.data_manager import DataManager
 from face_recognition_app.medication_manager import MedicationManager
 
+# Set this variable to True to use the Raspberry Pi Camera, or False for a USB/Laptop camera
+use_pi_camera = False  # Change to False if using a USB or laptop camera
+
+
 class SelectableLabel(Label):
     is_selected = BooleanProperty(False)
 
@@ -33,9 +37,14 @@ class SelectableLabel(Label):
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
-            self.is_selected = not self.is_selected  # Toggle selection
+            # Clear all other selections
+            for sibling in self.parent.children:
+                if isinstance(sibling, SelectableLabel):
+                    sibling.is_selected = False
+            self.is_selected = True  # Select this label
             return True
         return super(SelectableLabel, self).on_touch_down(touch)
+
 
 # Register the SelectableLabel class with Kivy's Factory
 Factory.register('SelectableLabel', cls=SelectableLabel)
@@ -50,7 +59,8 @@ class MainMenu(Screen):
 
     def __init__(self, **kwargs):
         super(MainMenu, self).__init__(**kwargs)
-        self.camera = CameraModule()
+                # Pass the use_pi_camera variable when initializing CameraModule
+        self.camera = CameraModule(use_pi_camera=use_pi_camera)
         self.face_recognizer = FaceRecognizer()
         self.data_manager = DataManager()
         self.update_event = None
@@ -136,7 +146,7 @@ class SettingsScreen(Screen):
     user_list = ObjectProperty(None)
     medication_input = ObjectProperty(None)
     status_label = ObjectProperty(None)
-    selected_users = ListProperty([])  # Track selected users
+    selected_user = None  # Correctly define the single selected user
 
     def __init__(self, **kwargs):
         super(SettingsScreen, self).__init__(**kwargs)
@@ -148,36 +158,44 @@ class SettingsScreen(Screen):
         threading.Thread(target=self.load_users).start()
 
     def load_users(self):
+        print("Loading users...")
+        # Ensure that users are plain strings
         users = set(self.data_manager.names)
-        self.user_list.data = [{'text': name} for name in users]
+        self.user_list.data = [{'text': str(name)} for name in users]  # Make sure these are strings
+        print(self.user_list.data)
         Clock.schedule_once(lambda dt: self.user_list.refresh_from_data(), 0)
+
+
+    def on_user_select(self, user_text):
+        self.selected_user = str(user_text)  # Directly set as a string
+        print(f"Selected user: {self.selected_user}")  # Debugging output
+
 
     def assign_medication(self):
         print("assign_medication called")
-        if not self.selected_users:
+        if not self.selected_user:
             self.status_label.text = "Por favor, seleccione un usuario."
             return
         medication_info = self.medication_input.text.strip()
         if not medication_info:
             self.status_label.text = "Por favor, ingrese información del medicamento."
             return
-        for user in self.selected_users:
-            self.med_manager.assign_medication(user, medication_info)
-        self.status_label.text = f"Medicamento asignado a {', '.join(self.selected_users)}."
+        self.med_manager.assign_medication(self.selected_user, medication_info)
+        self.status_label.text = f"Medicamento asignado a {self.selected_user}."
 
     def delete_user(self):
         print("delete_user called")
-        if not self.selected_users:
+        if not self.selected_user:
             self.status_label.text = "Por favor, seleccione un usuario para eliminar."
             return
-        for user in self.selected_users:
-            self.data_manager.delete_user(user)
-        self.status_label.text = f"Usuario(s) eliminado(s): {', '.join(self.selected_users)}."
-        self.selected_users = []  # Clear the selection after deleting users
-        self.load_users()
 
-    def on_user_select(self, user_text):
-        if user_text in self.selected_users:
-            self.selected_users.remove(user_text)
-        else:
-            self.selected_users.append(user_text)
+        user_to_delete = self.selected_user
+        print(f"Attempting to delete user: {user_to_delete}")
+
+        # Call DataManager to delete the user
+        self.data_manager.delete_user(user_to_delete)
+        self.status_label.text = f"Usuario eliminado: {user_to_delete}."
+
+        # Clear the selection and refresh the user list
+        self.selected_user = None
+        self.load_users()

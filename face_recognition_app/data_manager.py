@@ -35,9 +35,10 @@ class DataManager:
         self.names.append(name)
         self.save_data()
 
-    def delete_user(self, name):
-        indices = [i for i, n in enumerate(self.names) if n == name]
-        if indices:
-            self.embeddings = np.delete(self.embeddings, indices, axis=0)
-            self.names = [n for i, n in enumerate(self.names) if i not in indices]
-            self.save_data()
+    def delete_user(self, user):
+        print(f"Deleting user: {user}")
+        if user in self.names:
+            self.names.remove(user)
+            self.save_data()  # Save the updated list to persist changes
+        else:
+            print("User not found in the list.")
