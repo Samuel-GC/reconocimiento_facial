@@ -1,28 +1,33 @@
-# face_recognition_app/camera_module.py
-
 import cv2
+import numpy as np
+from picamera import PiCamera
+from picamera.array import PiRGBArray
 from kivy.graphics.texture import Texture
 
 class CameraModule:
     def __init__(self):
-        self.capture = None
+        self.camera = PiCamera()
+        self.camera.resolution = (640, 480)
+        self.camera.framerate = 30
+        self.raw_capture = PiRGBArray(self.camera, size=(640, 480))
+        self.stream = None
 
     def start(self):
-        self.capture = cv2.VideoCapture(0)
-        if not self.capture.isOpened():
-            raise Exception("Cannot open camera")
+        self.stream = self.camera.capture_continuous(
+            self.raw_capture, format="bgr", use_video_port=True
+        )
 
     def stop(self):
-        if self.capture:
-            self.capture.release()
-            self.capture = None
+        if self.stream:
+            self.stream.close()
+        self.camera.close()
 
     def get_frame(self):
-        if self.capture:
-            ret, frame = self.capture.read()
-            if ret:
-                frame = cv2.flip(frame, 1)
-                return frame
+        if self.stream:
+            for frame in self.stream:
+                image = frame.array
+                self.raw_capture.truncate(0)
+                return cv2.flip(image, 1)
         return None
 
     def convert_frame_to_texture(self, frame):
