@@ -30,8 +30,10 @@ class FaceRecognizer:
             name, _ = self.recognize_face(embedding, embeddings, names)
             x1, y1, x2, y2 = coords[i]
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cv2.putText(frame, name if name else 'Desconocido', (x1, y1 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
+            if not name:
+                name = 'Desconocido'
+            cv2.putText(frame, name, (x1, y1 - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
         return frame
 
     def extract_faces(self, frame):

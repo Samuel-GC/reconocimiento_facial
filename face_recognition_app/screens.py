@@ -1,7 +1,7 @@
 # face_recognition_app/screens.py
 
 from kivy.uix.screenmanager import Screen
-from kivy.properties import ObjectProperty, BooleanProperty
+from kivy.properties import ObjectProperty, BooleanProperty, ListProperty
 from kivy.clock import Clock
 from kivy.uix.label import Label
 from kivy.factory import Factory
@@ -26,14 +26,14 @@ class SelectableLabel(Label):
         self.canvas.before.clear()
         with self.canvas.before:
             if self.is_selected:
-                Color(0, 0.5, 0.5, 0.3)
+                Color(0, 0.5, 0.5, 0.3)  # Highlight color when selected
             else:
-                Color(0, 0, 0, 0)
+                Color(0, 0, 0, 0)  # No highlight when not selected
             Rectangle(pos=self.pos, size=self.size)
 
     def on_touch_down(self, touch):
         if self.collide_point(*touch.pos):
-            self.is_selected = not self.is_selected
+            self.is_selected = not self.is_selected  # Toggle selection
             return True
         return super(SelectableLabel, self).on_touch_down(touch)
 
@@ -42,41 +42,14 @@ Factory.register('SelectableLabel', cls=SelectableLabel)
 
 class MainMenu(Screen):
     camera_view = ObjectProperty(None)
+    name_input = ObjectProperty(None)
+    instructions_label = ObjectProperty(None)
+    status_label = ObjectProperty(None)
+    add_person_fields = ObjectProperty(None)
+    is_adding_person = BooleanProperty(False)
 
     def __init__(self, **kwargs):
         super(MainMenu, self).__init__(**kwargs)
-        self.camera = CameraModule()
-        self.face_recognizer = FaceRecognizer()
-        self.data_manager = DataManager()
-        self.update_event = None
-
-    def on_enter(self):
-        self.camera.start()
-        self.update_event = Clock.schedule_interval(self.update_frame, 1.0 / 30)
-
-    def on_leave(self):
-        if self.update_event:
-            Clock.unschedule(self.update_event)
-        self.camera.stop()
-
-    def update_frame(self, dt):
-        frame = self.camera.get_frame()
-        if frame is not None:
-            annotated_frame = self.face_recognizer.recognize_faces_in_frame(
-                frame, self.data_manager.embeddings, self.data_manager.names
-            )
-            texture = self.camera.convert_frame_to_texture(annotated_frame)
-            if texture:
-                self.camera_view.texture = texture
-
-class AddPersonScreen(Screen):
-    name_input = ObjectProperty(None)
-    instructions_label = ObjectProperty(None)
-    camera_view = ObjectProperty(None)
-    status_label = ObjectProperty(None)
-
-    def __init__(self, **kwargs):
-        super(AddPersonScreen, self).__init__(**kwargs)
         self.camera = CameraModule()
         self.face_recognizer = FaceRecognizer()
         self.data_manager = DataManager()
@@ -85,23 +58,48 @@ class AddPersonScreen(Screen):
         self.num_images_to_capture = 5
 
     def on_enter(self):
+        print("MainMenu on_enter called")
         self.camera.start()
         self.update_event = Clock.schedule_interval(self.update_frame, 1.0 / 30)
 
     def on_leave(self):
+        print("MainMenu on_leave called")
         if self.update_event:
             Clock.unschedule(self.update_event)
+            self.update_event = None
         self.camera.stop()
+
+    def show_add_person_fields(self):
+        print("show_add_person_fields called")
+        self.is_adding_person = True
+
+    def hide_add_person_fields(self):
+        print("hide_add_person_fields called")
+        self.is_adding_person = False
+        self.name_input.text = ''
+        self.status_label.text = ''
 
     def update_frame(self, dt):
         frame = self.camera.get_frame()
         if frame is not None:
-            frame_with_box = self.face_recognizer.draw_center_box(frame)
-            texture = self.camera.convert_frame_to_texture(frame_with_box)
-            if texture:
-                self.camera_view.texture = texture
+            if self.is_adding_person:
+                frame_with_box = self.face_recognizer.draw_center_box(frame)
+                texture = self.camera.convert_frame_to_texture(frame_with_box)
+                if texture:
+                    self.camera_view.texture = texture
+            else:
+                annotated_frame = self.face_recognizer.recognize_faces_in_frame(
+                    frame, self.data_manager.embeddings, self.data_manager.names
+                )
+                texture = self.camera.convert_frame_to_texture(annotated_frame)
+                if texture:
+                    self.camera_view.texture = texture
 
     def start_capture(self):
+        print("start_capture called")
+        if not self.is_adding_person:
+            return
+
         name = self.name_input.text.strip()
         if not name:
             self.status_label.text = "Por favor, ingrese un nombre válido."
@@ -132,19 +130,21 @@ class AddPersonScreen(Screen):
             avg_embedding = sum(self.captured_embeddings) / len(self.captured_embeddings)
             self.data_manager.add_embedding(avg_embedding, name)
             self.status_label.text = f"{name} ha sido registrado exitosamente."
+            self.hide_add_person_fields()
 
 class SettingsScreen(Screen):
     user_list = ObjectProperty(None)
     medication_input = ObjectProperty(None)
     status_label = ObjectProperty(None)
+    selected_users = ListProperty([])  # Track selected users
 
     def __init__(self, **kwargs):
         super(SettingsScreen, self).__init__(**kwargs)
         self.med_manager = MedicationManager()
         self.data_manager = DataManager()
-        self.selected_user = None
 
     def on_enter(self):
+        print("SettingsScreen on_enter called")
         threading.Thread(target=self.load_users).start()
 
     def load_users(self):
@@ -153,24 +153,31 @@ class SettingsScreen(Screen):
         Clock.schedule_once(lambda dt: self.user_list.refresh_from_data(), 0)
 
     def assign_medication(self):
-        selected_items = [item['text'] for item in self.user_list.data if item.get('is_selected', False)]
-        if not selected_items:
+        print("assign_medication called")
+        if not self.selected_users:
             self.status_label.text = "Por favor, seleccione un usuario."
             return
         medication_info = self.medication_input.text.strip()
         if not medication_info:
             self.status_label.text = "Por favor, ingrese información del medicamento."
             return
-        for user in selected_items:
+        for user in self.selected_users:
             self.med_manager.assign_medication(user, medication_info)
-        self.status_label.text = f"Medicamento asignado a {', '.join(selected_items)}."
+        self.status_label.text = f"Medicamento asignado a {', '.join(self.selected_users)}."
 
     def delete_user(self):
-        selected_items = [item['text'] for item in self.user_list.data if item.get('is_selected', False)]
-        if not selected_items:
+        print("delete_user called")
+        if not self.selected_users:
             self.status_label.text = "Por favor, seleccione un usuario para eliminar."
             return
-        for user in selected_items:
+        for user in self.selected_users:
             self.data_manager.delete_user(user)
-        self.status_label.text = f"Usuario(s) eliminado(s): {', '.join(selected_items)}."
+        self.status_label.text = f"Usuario(s) eliminado(s): {', '.join(self.selected_users)}."
+        self.selected_users = []  # Clear the selection after deleting users
         self.load_users()
+
+    def on_user_select(self, user_text):
+        if user_text in self.selected_users:
+            self.selected_users.remove(user_text)
+        else:
+            self.selected_users.append(user_text)

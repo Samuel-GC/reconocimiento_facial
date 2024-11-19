@@ -5,7 +5,7 @@ from kivy.uix.screenmanager import ScreenManager
 from kivy.lang import Builder
 import os
 
-from face_recognition_app.screens import MainMenu, AddPersonScreen, SettingsScreen
+from face_recognition_app.screens import MainMenu, SettingsScreen
 
 class FaceRecognitionApp(App):
     def build(self):
@@ -16,6 +16,5 @@ class FaceRecognitionApp(App):
         # Create the screen manager and add screens
         sm = ScreenManager()
         sm.add_widget(MainMenu(name='main_menu'))
-        sm.add_widget(AddPersonScreen(name='add_person'))
         sm.add_widget(SettingsScreen(name='settings'))
         return sm
