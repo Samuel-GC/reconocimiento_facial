@@ -5,3 +5,5 @@ tensorflow
 keras
 scikit-learn
 Pillow
+cmake
+dlib

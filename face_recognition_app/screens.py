@@ -16,35 +16,40 @@ from face_recognition_app.medication_manager import MedicationManager
 
 # Set this variable to True to use the Raspberry Pi Camera, or False for a USB/Laptop camera
 use_pi_camera = False  # Change to False if using a USB or laptop camera
+from kivy.uix.recycleboxlayout import RecycleBoxLayout
+from kivy.uix.behaviors import FocusBehavior
+from kivy.uix.recycleview.layout import LayoutSelectionBehavior
 
+from kivy.uix.recycleview.views import RecycleDataViewBehavior
+from kivy.uix.label import Label
+from kivy.properties import BooleanProperty
 
-class SelectableLabel(Label):
-    is_selected = BooleanProperty(False)
+class SelectableLabel(RecycleDataViewBehavior, Label):
+    index = None
+    selected = BooleanProperty(False)
+    selectable = BooleanProperty(True)
 
-    def __init__(self, **kwargs):
-        super(SelectableLabel, self).__init__(**kwargs)
-        self.bind(pos=self.update_canvas, size=self.update_canvas)
-        self.bind(is_selected=self.update_canvas)
-
-    def update_canvas(self, *args):
-        self.canvas.before.clear()
-        with self.canvas.before:
-            if self.is_selected:
-                Color(0, 0.5, 0.5, 0.3)  # Highlight color when selected
-            else:
-                Color(0, 0, 0, 0)  # No highlight when not selected
-            Rectangle(pos=self.pos, size=self.size)
+    def refresh_view_attrs(self, rv, index, data):
+        self.index = index
+        return super(SelectableLabel, self).refresh_view_attrs(rv, index, data)
 
     def on_touch_down(self, touch):
-        if self.collide_point(*touch.pos):
-            # Clear all other selections
-            for sibling in self.parent.children:
-                if isinstance(sibling, SelectableLabel):
-                    sibling.is_selected = False
-            self.is_selected = True  # Select this label
+        if super(SelectableLabel, self).on_touch_down(touch):
             return True
-        return super(SelectableLabel, self).on_touch_down(touch)
+        if self.collide_point(*touch.pos) and self.selectable:
+            self.parent.select_with_touch(self.index, touch)
+            return True
+        return False
 
+    def apply_selection(self, rv, index, is_selected):
+        self.selected = is_selected
+        if is_selected:
+            print(f"Seleccionado: {rv.data[index]['text']}")
+        else:
+            print(f"Des-seleccionado: {rv.data[index]['text']}")
+
+class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout):
+    pass
 
 # Register the SelectableLabel class with Kivy's Factory
 Factory.register('SelectableLabel', cls=SelectableLabel)
@@ -92,18 +97,55 @@ class MainMenu(Screen):
     def update_frame(self, dt):
         frame = self.camera.get_frame()
         if frame is not None:
-            if self.is_adding_person:
-                frame_with_box = self.face_recognizer.draw_center_box(frame)
-                texture = self.camera.convert_frame_to_texture(frame_with_box)
-                if texture:
-                    self.camera_view.texture = texture
-            else:
-                annotated_frame = self.face_recognizer.recognize_faces_in_frame(
-                    frame, self.data_manager.embeddings, self.data_manager.names
-                )
-                texture = self.camera.convert_frame_to_texture(annotated_frame)
-                if texture:
-                    self.camera_view.texture = texture
+            # Dibujar el cuadro amarillo punteado en el centro del marco
+            h, w, _ = frame.shape
+            box_size = int(min(w, h) * 0.5)
+            x1 = (w - box_size) // 2
+            y1 = (h - box_size) // 2
+            x2 = x1 + box_size
+            y2 = y1 + box_size
+
+            # Dibujar un cuadro punteado amarillo
+            self.draw_dotted_rectangle(frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+
+            # Mostrar un mensaje de instrucciones
+            cv2.putText(frame, "Acerque el rostro hasta que este dentro del recuadro",
+                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+
+            # Detección de rostros
+            faces, coords = self.face_recognizer.extract_faces(frame)
+            if coords:
+                # Usar el primer rostro detectado
+                x_face1, y_face1, x_face2, y_face2 = coords[0]
+
+                # Comprobar si el rostro está dentro del cuadro amarillo
+                if x1 < x_face1 and y1 < y_face1 and x2 > x_face2 and y2 > y_face2:
+                    color = (0, 255, 0)  # Verde: rostro dentro del cuadro
+                    self.is_face_inside_box = True
+                else:
+                    color = (0, 0, 255)  # Rojo: rostro fuera del cuadro
+                    self.is_face_inside_box = False
+
+                # Dibujar el círculo que sigue al rostro
+                center_x = (x_face1 + x_face2) // 2
+                center_y = (y_face1 + y_face2) // 2
+                cv2.circle(frame, (center_x, center_y), 5, color, -1)
+
+            # Convertir el marco a textura y mostrarlo
+            texture = self.camera.convert_frame_to_texture(frame)
+            if texture:
+                self.camera_view.texture = texture
+
+# Función para dibujar un cuadro punteado
+    def draw_dotted_rectangle(self, img, pt1, pt2, color, thickness, gap=10):
+        x1, y1 = pt1
+        x2, y2 = pt2
+        for x in range(x1, x2, gap):
+            cv2.line(img, (x, y1), (x + gap // 2, y1), color, thickness)
+            cv2.line(img, (x, y2), (x + gap // 2, y2), color, thickness)
+        for y in range(y1, y2, gap):
+            cv2.line(img, (x1, y), (x1, y + gap // 2), color, thickness)
+            cv2.line(img, (x2, y), (x2, y + gap // 2), color, thickness)
 
     def start_capture(self):
         print("start_capture called")
@@ -171,31 +213,40 @@ class SettingsScreen(Screen):
         print(f"Selected user: {self.selected_user}")  # Debugging output
 
 
+    def get_selected_user(self):
+        selected_nodes = self.user_list.layout_manager.selected_nodes
+        if selected_nodes:
+            index = selected_nodes[0]
+            selected_user = self.user_list.data[index]['text']
+            return selected_user
+        else:
+            return None
+    
+    def delete_user(self):
+        print("delete_user called")
+        selected_user = self.get_selected_user()
+        if not selected_user:
+            self.status_label.text = "Por favor, seleccione un usuario para eliminar."
+            return
+
+        print(f"Attempting to delete user: {selected_user}")
+
+        # Llamar a DataManager para eliminar el usuario
+        self.data_manager.delete_user(selected_user)
+        self.status_label.text = f"Usuario eliminado: {selected_user}."
+
+        # Actualizar la lista de usuarios
+        self.load_users()
+
     def assign_medication(self):
         print("assign_medication called")
-        if not self.selected_user:
+        selected_user = self.get_selected_user()
+        if not selected_user:
             self.status_label.text = "Por favor, seleccione un usuario."
             return
         medication_info = self.medication_input.text.strip()
         if not medication_info:
             self.status_label.text = "Por favor, ingrese información del medicamento."
             return
-        self.med_manager.assign_medication(self.selected_user, medication_info)
-        self.status_label.text = f"Medicamento asignado a {self.selected_user}."
-
-    def delete_user(self):
-        print("delete_user called")
-        if not self.selected_user:
-            self.status_label.text = "Por favor, seleccione un usuario para eliminar."
-            return
-
-        user_to_delete = self.selected_user
-        print(f"Attempting to delete user: {user_to_delete}")
-
-        # Call DataManager to delete the user
-        self.data_manager.delete_user(user_to_delete)
-        self.status_label.text = f"Usuario eliminado: {user_to_delete}."
-
-        # Clear the selection and refresh the user list
-        self.selected_user = None
-        self.load_users()
+        self.med_manager.assign_medication(selected_user, medication_info)
+        self.status_label.text = f"Medicamento asignado a {selected_user}."

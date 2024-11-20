@@ -69,7 +69,13 @@
                     on_release:
                         root.hide_add_person_fields()
 
-
+<SelectableLabel>:
+    canvas.before:
+        Color:
+            rgba: (0.5, 0.5, 0.5, 0.3) if self.selected else (0, 0, 0, 0)
+        Rectangle:
+            pos: self.pos
+            size: self.size
 
 <SettingsScreen>:
     user_list: user_list
@@ -87,13 +93,14 @@
         RecycleView:
             id: user_list
             viewclass: 'SelectableLabel'
-            RecycleBoxLayout:
+            SelectableRecycleBoxLayout:
                 default_size: None, 40
                 default_size_hint: 1, None
                 size_hint_y: None
                 height: self.minimum_height
                 orientation: 'vertical'
-                on_touch_down: root.on_user_select(self.viewclass.text)  # Call on_user_select
+                multiselect: False
+                touch_multiselect: False
         TextInput:
             id: medication_input
             hint_text: 'Información del medicamento'
