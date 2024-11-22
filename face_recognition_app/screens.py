@@ -1,5 +1,6 @@
 # face_recognition_app/screens.py
 
+import dlib
 from kivy.uix.screenmanager import Screen
 from kivy.properties import ObjectProperty, BooleanProperty, ListProperty
 from kivy.clock import Clock
@@ -97,44 +98,49 @@ class MainMenu(Screen):
     def update_frame(self, dt):
         frame = self.camera.get_frame()
         if frame is not None:
-            # Dibujar el cuadro amarillo punteado en el centro del marco
-            h, w, _ = frame.shape
-            box_size = int(min(w, h) * 0.5)
-            x1 = (w - box_size) // 2
-            y1 = (h - box_size) // 2
-            x2 = x1 + box_size
-            y2 = y1 + box_size
+            # Si se está agregando una nueva persona, mostrar el cuadro amarillo y verificar rostro
+            if self.is_adding_person:
+                # Dimensiones de la imagen
+                h, w, _ = frame.shape
+                box_size = int(min(w, h) * 0.5)
 
-            # Dibujar un cuadro punteado amarillo
-            self.draw_dotted_rectangle(frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
+                # Coordenadas del cuadro amarillo punteado
+                x1 = (w - box_size) // 2
+                y1 = (h - box_size) // 2
+                x2 = x1 + box_size
+                y2 = y1 + box_size
 
-            # Mostrar un mensaje de instrucciones
-            cv2.putText(frame, "Acerque el rostro hasta que este dentro del recuadro",
-                        (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)
+                # Dibujar cuadro amarillo punteado
+                self.draw_dotted_rectangle(frame, (x1, y1), (x2, y2), (0, 255, 255), 2)
 
-            # Detección de rostros
-            faces, coords = self.face_recognizer.extract_faces(frame)
-            if coords:
-                # Usar el primer rostro detectado
-                x_face1, y_face1, x_face2, y_face2 = coords[0]
+                # Mostrar mensaje de instrucciones
+                cv2.putText(frame, "Acerque el rostro hasta que este dentro del recuadro",
+                            (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2)
 
-                # Comprobar si el rostro está dentro del cuadro amarillo
-                if x1 < x_face1 and y1 < y_face1 and x2 > x_face2 and y2 > y_face2:
-                    color = (0, 255, 0)  # Verde: rostro dentro del cuadro
-                    self.is_face_inside_box = True
-                else:
-                    color = (0, 0, 255)  # Rojo: rostro fuera del cuadro
-                    self.is_face_inside_box = False
+                # Detectar rostros
+                faces, coords = self.face_recognizer.extract_faces(frame)
+                if coords:
+                    # Usar el primer rostro detectado
+                    x_face1, y_face1, x_face2, y_face2 = coords[0]
 
-                # Dibujar el círculo que sigue al rostro
-                center_x = (x_face1 + x_face2) // 2
-                center_y = (y_face1 + y_face2) // 2
-                cv2.circle(frame, (center_x, center_y), 5, color, -1)
+                    # Comprobar si el rostro está dentro del cuadro amarillo
+                    if x1 < x_face1 < x2 and x1 < x_face2 < x2 and y1 < y_face1 < y2 and y1 < y_face2 < y2:
+                        color = (0, 255, 0)  # Verde: rostro dentro del cuadro
+                        self.is_face_inside_box = True
+                    else:
+                        color = (0, 0, 255)  # Rojo: rostro fuera del cuadro
+                        self.is_face_inside_box = False
+                        cv2.putText(frame, "Por favor, centre el rostro en el recuadro",
+                                    (10, h - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
+
+                    # Dibujar el cuadro alrededor del rostro
+                    cv2.rectangle(frame, (x_face1, y_face1), (x_face2, y_face2), color, 2)
 
             # Convertir el marco a textura y mostrarlo
             texture = self.camera.convert_frame_to_texture(frame)
             if texture:
                 self.camera_view.texture = texture
+
 
 # Función para dibujar un cuadro punteado
     def draw_dotted_rectangle(self, img, pt1, pt2, color, thickness, gap=10):
