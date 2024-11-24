@@ -8,7 +8,7 @@ try:
     from libcamera import Transform
     RASPBERRY_PI_AVAILABLE = True
     print("Depuración: Picamera2 importado correctamente")
-except ImportError:
+except Exception as e:
     RASPBERRY_PI_AVAILABLE = False
     print(f"Depuración: Error al importar Picamera2: {e}")
 
