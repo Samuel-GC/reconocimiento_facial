@@ -42,24 +42,42 @@ class CameraModule:
 
     def get_frame(self):
         if self.use_pi_camera and RASPBERRY_PI_AVAILABLE:
-            frame = self.camera.capture_array()
-            return frame
+            try:
+                frame = self.camera.capture_array()
+                if frame is None:
+                    print("Depuración: El frame capturado es None")
+                else:
+                    print("Depuración: Dimensiones del frame capturado:", frame.shape)
+                return frame
+            except Exception as e:
+                print("Error al capturar el frame:", e)
+                return None
         else:
             if self.capture:
                 ret, frame = self.capture.read()
                 if ret:
                     return frame
-        return None
+                else:
+                    print("Depuración: No se pudo leer el frame del dispositivo de captura")
+            else:
+                print("Depuración: El dispositivo de captura es None")
+            return None
 
     def convert_frame_to_texture(self, frame):
         if frame is None:
+            print("Depuración: El frame pasado a convert_frame_to_texture es None")
             return None
-        # Convertir el frame de BGR a RGB
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        buf = frame_rgb.tobytes()
-        texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='rgb')
-        texture.blit_buffer(buf, colorfmt='rgb', bufferfmt='ubyte')
-        return texture
+        try:
+            # Convertir el frame de BGR a RGB
+            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            buf = frame_rgb.tobytes()
+            texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='rgb')
+            texture.blit_buffer(buf, colorfmt='rgb', bufferfmt='ubyte')
+            print("Depuración: Textura creada con tamaño:", texture.size)
+            return texture
+        except Exception as e:
+            print("Error al convertir el frame a textura:", e)
+            return None
 
 
 

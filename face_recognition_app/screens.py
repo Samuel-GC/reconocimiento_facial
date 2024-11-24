@@ -198,6 +198,11 @@ class MainMenu(Screen):
             texture = self.camera.convert_frame_to_texture(frame)
             if texture:
                 self.camera_view.texture = texture
+                print("Depuración: Textura actualizada en camera_view")
+            else:
+                print("Depuración: La textura es None, no se actualiza camera_view")
+        else:
+            print("Depuración: El frame es None, se omite update_frame")
 
 
 
