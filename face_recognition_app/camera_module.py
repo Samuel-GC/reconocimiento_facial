@@ -3,19 +3,19 @@ import numpy as np
 from kivy.graphics.texture import Texture
 
 # Import PiCamera only if running on Raspberry Pi
-try:
-    from picamera2 import Picamera2
-    from libcamera import Transform
-    RASPBERRY_PI_AVAILABLE = True
-    print("Depuración: Picamera2 importado correctamente")
-except Exception as e:
-    RASPBERRY_PI_AVAILABLE = False
-    print(f"Depuración: Error al importar Picamera2: {e}")
+# try:
+#     from picamera2 import Picamera2
+#     from libcamera import Transform
+#     RASPBERRY_PI_AVAILABLE = True
+#     print("Depuración: Picamera2 importado correctamente")
+# except Exception as e:
+#     RASPBERRY_PI_AVAILABLE = False
+#     print(f"Depuración: Error al importar Picamera2: {e}")
 
 class CameraModule:
     def __init__(self, use_pi_camera=True):
-        self.use_pi_camera = use_pi_camera
-        print(f"Depuración: use_pi_camera={self.use_pi_camera}, RASPBERRY_PI_AVAILABLE={RASPBERRY_PI_AVAILABLE}")
+        self.use_pi_camera = True
+        print(f"Depuración: use_pi_camera={self.use_pi_camera}")
         self.capture = None
 
         if self.use_pi_camera:
