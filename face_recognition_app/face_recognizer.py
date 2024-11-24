@@ -54,12 +54,14 @@ class FaceRecognizer:
         faces, coords = self.extract_faces(frame)
         for i, face in enumerate(faces):
             embedding = self.get_embedding(face)
-            name, _ = self.recognize_face(embedding, embeddings, names)
+            name, similarity = self.recognize_face(embedding, embeddings, names)
             x1, y1, x2, y2 = coords[i]
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             if not name:
                 name = 'Desconocido'
-            cv2.putText(frame, name, (x1, y1 - 10),
+            # Mostrar nombre y nivel de similitud
+            text = f"{name} ({similarity*100:.2f}%)"
+            cv2.putText(frame, text, (x1, y1 - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
         return frame
 

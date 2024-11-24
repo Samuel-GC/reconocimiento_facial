@@ -11,7 +11,7 @@ except ImportError:
     RASPBERRY_PI_AVAILABLE = False
 
 class CameraModule:
-    def __init__(self, use_pi_camera=False):
+    def __init__(self, use_pi_camera=True):
         self.use_pi_camera = use_pi_camera
         self.capture = None
         self.stream = None
