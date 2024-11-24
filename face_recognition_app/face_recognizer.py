@@ -59,10 +59,17 @@ class FaceRecognizer:
             cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
             if not name:
                 name = 'Desconocido'
+            # Definir color basado en similitud
+            if similarity > 0.8:
+                color = (0, 255, 0)  # Verde
+            elif similarity > 0.6:
+                color = (0, 255, 255)  # Amarillo
+            else:
+                color = (0, 0, 255)  # Rojo
             # Mostrar nombre y nivel de similitud
             text = f"{name} ({similarity*100:.2f}%)"
             cv2.putText(frame, text, (x1, y1 - 10),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
         return frame
 
     def extract_faces(self, frame):

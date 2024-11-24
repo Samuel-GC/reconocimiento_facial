@@ -9,6 +9,7 @@ from kivy.factory import Factory
 from kivy.graphics import Color, Rectangle
 import threading
 import cv2
+from kivy.app import App
 
 from face_recognition_app.camera_module import CameraModule
 from face_recognition_app.face_recognizer import FaceRecognizer
@@ -44,10 +45,19 @@ class SelectableLabel(RecycleDataViewBehavior, Label):
 
     def apply_selection(self, rv, index, is_selected):
         self.selected = is_selected
+        selected_text = rv.data[index]['text']
         if is_selected:
             print(f"Seleccionado: {rv.data[index]['text']}")
+            # Actualizar selected_user en SettingsScreen
+            app = App.get_running_app()
+            settings_screen = app.root.get_screen('settings')
+            settings_screen.selected_user = selected_text
         else:
             print(f"Des-seleccionado: {rv.data[index]['text']}")
+            # Si se desea deseleccionar el usuario
+            app = App.get_running_app()
+            settings_screen = app.root.get_screen('settings')
+            settings_screen.selected_user = None
 
 class SelectableRecycleBoxLayout(FocusBehavior, LayoutSelectionBehavior, RecycleBoxLayout):
     pass
@@ -262,8 +272,8 @@ class SettingsScreen(Screen):
             self.user_list.refresh_from_data()
         Clock.schedule_once(update_user_list, 0)
 
-    def on_user_select(self, user_text):
-        self.selected_user = str(user_text)
+    # def on_user_select(self, user_text):
+    #     self.selected_user = str(user_text)
 
     def get_selected_user(self):
         return self.selected_user
@@ -282,6 +292,7 @@ class SettingsScreen(Screen):
 
     def assign_medication(self):
         selected_user = self.get_selected_user()
+        print(selected_user)
         if not selected_user:
             self.status_label.text = "Por favor, seleccione un usuario."
             return

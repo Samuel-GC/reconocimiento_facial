@@ -4,8 +4,8 @@ from kivy.graphics.texture import Texture
 
 # Import PiCamera only if running on Raspberry Pi
 try:
-    from picamera import PiCamera
-    from picamera.array import PiRGBArray
+    from picamera2 import PiCamera2
+    from picamera2.array import PiRGBArray
     RASPBERRY_PI_AVAILABLE = True
 except ImportError:
     RASPBERRY_PI_AVAILABLE = False
@@ -18,7 +18,7 @@ class CameraModule:
 
         if self.use_pi_camera and RASPBERRY_PI_AVAILABLE:
             # Initialize the PiCamera
-            self.camera = PiCamera()
+            self.camera = PiCamera2()
             self.camera.resolution = (640, 480)
             self.camera.framerate = 30
             self.raw_capture = PiRGBArray(self.camera, size=(640, 480))
@@ -65,3 +65,39 @@ class CameraModule:
         texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
         texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
         return texture
+
+
+
+# from picamera2 import Picamera2
+# import cv2
+
+# # Inicializa la cÃ¡mara
+# picam2 = Picamera2()
+# config = picam2.create_preview_configuration(main={"size": (640, 480)})  # ConfiguraciÃ³n de resoluciÃ³n
+# picam2.configure(config)
+
+# # Inicia la cÃ¡mara
+# picam2.start()
+# print("CÃ¡mara en funcionamiento. Presiona 'q' para salir.")
+
+# try:
+#     # Muestra una sola ventana con video en vivo
+#     while True:
+#         # Captura un frame de la cÃ¡mara
+#         frame = picam2.capture_array()
+
+#         # Muestra el frame en la misma ventana
+#         cv2.imshow("Video en Vivo", frame)
+
+#         # Salir del bucle si se presiona 'q'
+#         if cv2.waitKey(1) & 0xFF == ord('q'):
+#             break
+
+# except KeyboardInterrupt:
+#     print("\nInterrumpido por el usuario.")
+
+# finally:
+#     # Libera recursos
+#     picam2.stop()
+#     cv2.destroyAllWindows()
+#     print("CÃ¡mara detenida y recursos liberados.")
