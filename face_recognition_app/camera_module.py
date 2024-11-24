@@ -18,19 +18,26 @@ class CameraModule:
         print(f"Depuración: use_pi_camera={self.use_pi_camera}, RASPBERRY_PI_AVAILABLE={RASPBERRY_PI_AVAILABLE}")
         self.capture = None
 
-        if self.use_pi_camera and RASPBERRY_PI_AVAILABLE:
-            print("Depuración: Usando Picamera2")
-            self.camera = Picamera2()
-            config = self.camera.create_still_configuration(main={"size": (640, 480)},
-                                                            transform=Transform(hflip=1))
-            self.camera.configure(config)
+        if self.use_pi_camera:
+            # Usar tubería GStreamer con OpenCV para acceder a la cámara Raspberry Pi
+            self.pipeline = (
+                "libcamerasrc ! video/x-raw,width=640,height=480,framerate=30/1 "
+                "! videoconvert ! appsink"
+            )
+            # print("Depuración: Usando Picamera2")
+            # self.camera = Picamera2()
+            # config = self.camera.create_still_configuration(main={"size": (640, 480)},
+            #                                                 transform=Transform(hflip=1))
+            # self.camera.configure(config)
         else:
             print("Depuración: Usando cv2.VideoCapture")
             self.capture = cv2.VideoCapture(0)
 
     def start(self):
-        if self.use_pi_camera and RASPBERRY_PI_AVAILABLE:
-            self.camera.start()
+        if self.use_pi_camera:
+            self.capture = cv2.VideoCapture(self.pipeline, cv2.CAP_GSTREAMER)
+            if not self.capture.isOpened():
+                raise Exception("No se puede abrir la cámara usando la tubería GStreamer")
         else:
             if self.capture is None or not self.capture.isOpened():
                 self.capture = cv2.VideoCapture(0)
@@ -38,51 +45,32 @@ class CameraModule:
                     raise Exception("Cannot open camera")
 
     def stop(self):
-        if self.use_pi_camera and RASPBERRY_PI_AVAILABLE:
-            self.camera.close()
-        else:
-            if self.capture:
+        if self.capture:
                 self.capture.release()
                 self.capture = None
 
     def get_frame(self):
-        if self.use_pi_camera and RASPBERRY_PI_AVAILABLE:
-            try:
-                frame = self.camera.capture_array()
-                if frame is None:
-                    print("Depuración: El frame capturado es None")
-                else:
-                    print("Depuración: Dimensiones del frame capturado:", frame.shape)
+        if self.capture:
+            ret, frame = self.capture.read()
+            if ret:
                 return frame
-            except Exception as e:
-                print("Error al capturar el frame:", e)
-                return None
-        else:
-            if self.capture:
-                ret, frame = self.capture.read()
-                if ret:
-                    return frame
-                else:
-                    print("Depuración: No se pudo leer el frame del dispositivo de captura")
             else:
-                print("Depuración: El dispositivo de captura es None")
-            return None
+                print("Depuración: No se pudo leer el frame del dispositivo de captura")
+        else:
+            print("Depuración: El dispositivo de captura es None")
+        return None
+
 
     def convert_frame_to_texture(self, frame):
         if frame is None:
-            print("Depuración: El frame pasado a convert_frame_to_texture es None")
             return None
-        try:
-            # Convertir el frame de BGR a RGB
-            frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            buf = frame_rgb.tobytes()
-            texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='rgb')
-            texture.blit_buffer(buf, colorfmt='rgb', bufferfmt='ubyte')
-            print("Depuración: Textura creada con tamaño:", texture.size)
-            return texture
-        except Exception as e:
-            print("Error al convertir el frame a textura:", e)
-            return None
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        buf = frame_rgb.tobytes()
+        texture = Texture.create(
+            size=(frame.shape[1], frame.shape[0]), colorfmt='rgb'
+        )
+        texture.blit_buffer(buf, colorfmt='rgb', bufferfmt='ubyte')
+        return texture
 
 
 
