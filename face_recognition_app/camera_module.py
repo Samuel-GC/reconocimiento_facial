@@ -4,43 +4,36 @@ from kivy.graphics.texture import Texture
 
 # Import PiCamera only if running on Raspberry Pi
 try:
-    from picamera2 import PiCamera2
-    from picamera2.array import PiRGBArray
+    from picamera2 import Picamera2
+    from libcamera import Transform
     RASPBERRY_PI_AVAILABLE = True
 except ImportError:
     RASPBERRY_PI_AVAILABLE = False
 
 class CameraModule:
-    def __init__(self, use_pi_camera=True):
+    def __init__(self, use_pi_camera=False):
         self.use_pi_camera = use_pi_camera
         self.capture = None
-        self.stream = None
 
         if self.use_pi_camera and RASPBERRY_PI_AVAILABLE:
-            # Initialize the PiCamera
-            self.camera = PiCamera2()
-            self.camera.resolution = (640, 480)
-            self.camera.framerate = 30
-            self.raw_capture = PiRGBArray(self.camera, size=(640, 480))
+            self.camera = Picamera2()
+            config = self.camera.create_still_configuration(main={"size": (640, 480)},
+                                                            transform=Transform(hflip=1))
+            self.camera.configure(config)
         else:
-            # Initialize the USB/Laptop camera
             self.capture = cv2.VideoCapture(0)
 
     def start(self):
         if self.use_pi_camera and RASPBERRY_PI_AVAILABLE:
-            self.stream = self.camera.capture_continuous(
-                self.raw_capture, format="bgr", use_video_port=True
-            )
+            self.camera.start()
         else:
-            if self.capture is None:
+            if self.capture is None or not self.capture.isOpened():
                 self.capture = cv2.VideoCapture(0)
-            if not self.capture.isOpened():
-                raise Exception("Cannot open camera")
+                if not self.capture.isOpened():
+                    raise Exception("Cannot open camera")
 
     def stop(self):
         if self.use_pi_camera and RASPBERRY_PI_AVAILABLE:
-            if self.stream:
-                self.stream.close()
             self.camera.close()
         else:
             if self.capture:
@@ -49,22 +42,25 @@ class CameraModule:
 
     def get_frame(self):
         if self.use_pi_camera and RASPBERRY_PI_AVAILABLE:
-            for frame in self.stream:
-                image = frame.array
-                self.raw_capture.truncate(0)
-                return cv2.flip(image, 1)
+            frame = self.camera.capture_array()
+            return frame
         else:
             if self.capture:
                 ret, frame = self.capture.read()
                 if ret:
-                    return cv2.flip(frame, 1)
+                    return frame
         return None
 
     def convert_frame_to_texture(self, frame):
-        buf = cv2.flip(frame, 0).tobytes()
-        texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='bgr')
-        texture.blit_buffer(buf, colorfmt='bgr', bufferfmt='ubyte')
+        if frame is None:
+            return None
+        # Convertir el frame de BGR a RGB
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        buf = frame_rgb.tobytes()
+        texture = Texture.create(size=(frame.shape[1], frame.shape[0]), colorfmt='rgb')
+        texture.blit_buffer(buf, colorfmt='rgb', bufferfmt='ubyte')
         return texture
+
 
 
 
