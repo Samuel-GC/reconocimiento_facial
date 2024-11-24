@@ -119,3 +119,40 @@ class FaceRecognizer:
         else:
             name = 'Desconocido'
         return name, max_similarity
+
+    def extract_face_from_center_box(self, frame):
+        h, w, _ = frame.shape
+        box_size = int(min(w, h) * 0.5)
+        x1 = (w - box_size) // 2
+        y1 = (h - box_size) // 2
+        x2 = x1 + box_size
+        y2 = y1 + box_size
+
+        if self.model_type == 'mtcnn':
+            results = self.detector.detect_faces(frame)
+            for result in results:
+                x, y, width, height = result['box']
+                x2_face, y2_face = x + width, y + height
+
+                if x1 < x < x2 and x1 < x2_face < x2 and y1 < y < y2 and y1 < y2_face < y2:
+                    face = frame[y:y+height, x:x+width]
+                    if face.size == 0:
+                        continue
+                    face = cv2.resize(face, (224, 224))
+                    return face
+        elif self.model_type == 'dlib':
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            faces_dlib = self.detector(gray)
+            for rect in faces_dlib:
+                x = rect.left()
+                y = rect.top()
+                x2_face = rect.right()
+                y2_face = rect.bottom()
+
+                if x1 < x < x2 and x1 < x2_face < x2 and y1 < y < y2 and y1 < y2_face < y2:
+                    face = frame[y:y2_face, x:x2_face]
+                    if face.size == 0:
+                        continue
+                    face = cv2.resize(face, (224, 224))
+                    return face
+        return None

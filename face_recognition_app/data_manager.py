@@ -5,7 +5,7 @@ import numpy as np
 import os
 
 class DataManager:
-    def __init__(self, data_dir='data', embedding_size=512):
+    def __init__(self, data_dir='data', embedding_size=1280):
         self.data_dir = data_dir
         os.makedirs(self.data_dir, exist_ok=True)
         self.embeddings_file = os.path.join(self.data_dir, 'embeddings.pkl')

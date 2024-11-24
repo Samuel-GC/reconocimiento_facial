@@ -32,6 +32,8 @@ class CameraModule:
                 self.raw_capture, format="bgr", use_video_port=True
             )
         else:
+            if self.capture is None:
+                self.capture = cv2.VideoCapture(0)
             if not self.capture.isOpened():
                 raise Exception("Cannot open camera")
 

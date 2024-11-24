@@ -19,6 +19,8 @@
             size_hint_y: None
             height: 50
             spacing: 10
+            opacity: 1 if not root.is_adding_person else 0
+            disabled: root.is_adding_person
             Button:
                 text: 'Reconocer Nueva Persona'
                 font_size: 18
@@ -80,6 +82,7 @@
 <SettingsScreen>:
     user_list: user_list
     medication_input: medication_input
+    schedule_input: schedule_input
     status_label: status_label
     BoxLayout:
         orientation: 'vertical'
@@ -103,7 +106,13 @@
                 touch_multiselect: False
         TextInput:
             id: medication_input
-            hint_text: 'Información del medicamento'
+            hint_text: 'Nombre del medicamento'
+            font_size: 14
+            size_hint_y: None
+            height: 30
+        TextInput:
+            id: schedule_input
+            hint_text: 'Horario(s) de toma (HH:MM, separados por comas)'
             font_size: 14
             size_hint_y: None
             height: 30
@@ -122,6 +131,15 @@
                 font_size: 18
                 on_release:
                     root.assign_medication()
+            Button:
+                text: 'Eliminar Medicamento'
+                font_size: 18
+                on_release:
+                    root.delete_medication()
+        BoxLayout:
+            size_hint_y: None
+            height: 50
+            spacing: 10
             Button:
                 text: 'Eliminar Usuario'
                 font_size: 18

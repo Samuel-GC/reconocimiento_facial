@@ -72,7 +72,47 @@ class MainMenu(Screen):
         self.update_event = None
         self.captured_embeddings = []
         self.num_images_to_capture = 5
+        self.med_manager = MedicationManager()
+        self.notification_label = None  # Añadiremos un label para notificaciones
 
+    def on_recognition_complete(self, results):
+        self.recognition_results = results
+        self.recognition_in_progress = False
+
+        # Verificar si hay medicamentos que tomar
+        if results:
+            for res in results:
+                name = res['name']
+                if name != 'Desconocido':
+                    medications_due = self.med_manager.check_medication_time(name)
+                    if medications_due:
+                        medications_text = ', '.join(medications_due)
+                        notification_text = f"{name}, es hora de tomar: {medications_text}"
+                        # Mostrar notificación en pantalla
+                        Clock.schedule_once(lambda dt: self.show_notification(notification_text), 0)
+                        break  # Solo mostrar una notificación por vez
+
+    def show_notification(self, message):
+        if not self.notification_label:
+            from kivy.uix.label import Label
+            self.notification_label = Label(
+                text=message,
+                font_size=24,
+                color=(1, 0, 0, 1),
+                size_hint=(1, None),
+                height=50
+            )
+            self.add_widget(self.notification_label)
+        else:
+            self.notification_label.text = message
+
+        # Ocultar la notificación después de 10 segundos
+        Clock.schedule_once(lambda dt: self.hide_notification(), 10)
+
+    def hide_notification(self):
+        if self.notification_label:
+            self.remove_widget(self.notification_label)
+            self.notification_label = None
     def on_enter(self):
         print("MainMenu on_enter called")
         self.camera.start()
@@ -135,11 +175,20 @@ class MainMenu(Screen):
 
                     # Dibujar el cuadro alrededor del rostro
                     cv2.rectangle(frame, (x_face1, y_face1), (x_face2, y_face2), color, 2)
-
+            else:
+                # Realizar reconocimiento facial
+                embeddings = self.data_manager.embeddings
+                names = self.data_manager.names
+                if len(embeddings) > 0:
+                    frame = self.face_recognizer.recognize_faces_in_frame(frame, embeddings, names)
+                else:
+                    cv2.putText(frame, "No hay datos de entrenamiento disponibles.",
+                                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
             # Convertir el marco a textura y mostrarlo
             texture = self.camera.convert_frame_to_texture(frame)
             if texture:
                 self.camera_view.texture = texture
+
 
 
 # Función para dibujar un cuadro punteado
@@ -193,8 +242,9 @@ class MainMenu(Screen):
 class SettingsScreen(Screen):
     user_list = ObjectProperty(None)
     medication_input = ObjectProperty(None)
+    schedule_input = ObjectProperty(None)
     status_label = ObjectProperty(None)
-    selected_user = None  # Correctly define the single selected user
+    selected_user = None
 
     def __init__(self, **kwargs):
         super(SettingsScreen, self).__init__(**kwargs)
@@ -202,57 +252,58 @@ class SettingsScreen(Screen):
         self.data_manager = DataManager()
 
     def on_enter(self):
-        print("SettingsScreen on_enter called")
         threading.Thread(target=self.load_users).start()
 
     def load_users(self):
-        print("Loading users...")
-        # Ensure that users are plain strings
         users = set(self.data_manager.names)
-        self.user_list.data = [{'text': str(name)} for name in users]  # Make sure these are strings
-        print(self.user_list.data)
-        Clock.schedule_once(lambda dt: self.user_list.refresh_from_data(), 0)
-
+        data = [{'text': str(name)} for name in users]
+        def update_user_list(dt):
+            self.user_list.data = data
+            self.user_list.refresh_from_data()
+        Clock.schedule_once(update_user_list, 0)
 
     def on_user_select(self, user_text):
-        self.selected_user = str(user_text)  # Directly set as a string
-        print(f"Selected user: {self.selected_user}")  # Debugging output
-
+        self.selected_user = str(user_text)
 
     def get_selected_user(self):
-        selected_nodes = self.user_list.layout_manager.selected_nodes
-        if selected_nodes:
-            index = selected_nodes[0]
-            selected_user = self.user_list.data[index]['text']
-            return selected_user
-        else:
-            return None
-    
+        return self.selected_user
+
     def delete_user(self):
-        print("delete_user called")
         selected_user = self.get_selected_user()
         if not selected_user:
             self.status_label.text = "Por favor, seleccione un usuario para eliminar."
             return
 
-        print(f"Attempting to delete user: {selected_user}")
-
-        # Llamar a DataManager para eliminar el usuario
         self.data_manager.delete_user(selected_user)
+        self.med_manager.medications.pop(selected_user, None)  # Eliminar medicamentos asociados
+        self.med_manager.save_medications()
         self.status_label.text = f"Usuario eliminado: {selected_user}."
-
-        # Actualizar la lista de usuarios
         self.load_users()
 
     def assign_medication(self):
-        print("assign_medication called")
         selected_user = self.get_selected_user()
         if not selected_user:
             self.status_label.text = "Por favor, seleccione un usuario."
             return
         medication_info = self.medication_input.text.strip()
-        if not medication_info:
-            self.status_label.text = "Por favor, ingrese información del medicamento."
+        schedule_info = self.schedule_input.text.strip()
+        if not medication_info or not schedule_info:
+            self.status_label.text = "Por favor, ingrese medicamento y horario."
             return
-        self.med_manager.assign_medication(selected_user, medication_info)
+        # Parsear horarios, suponiendo que se ingresan separados por comas
+        schedule = [s.strip() for s in schedule_info.split(',')]
+        self.med_manager.assign_medication(selected_user, medication_info, schedule)
         self.status_label.text = f"Medicamento asignado a {selected_user}."
+        self.medication_input.text = ''
+        self.schedule_input.text = ''
+
+    def delete_medication(self):
+        selected_user = self.get_selected_user()
+        medication_info = self.medication_input.text.strip()
+        if not selected_user or not medication_info:
+            self.status_label.text = "Por favor, seleccione un usuario y un medicamento."
+            return
+        self.med_manager.delete_medication(selected_user, medication_info)
+        self.status_label.text = f"Medicamento eliminado de {selected_user}."
+        self.medication_input.text = ''
+        self.schedule_input.text = ''
