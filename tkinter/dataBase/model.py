@@ -17,6 +17,7 @@ class Usuario(Base):
     __tablename__ = "usuario"
     id = Column(Integer, primary_key=True)
     user = Column(String)
+    foto = Column(String)
     medicamentos = relationship("Medicamento", back_populates="usuario")
 
 class Medicamento(Base):
