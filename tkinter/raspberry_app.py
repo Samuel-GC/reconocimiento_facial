@@ -19,7 +19,11 @@ class App:
         self.root.geometry("900x800")
         self.root.resizable(False, False)
         self.picam2 = None  # Inicializa la cámara como None
-        self.set_background("fondo.jpg")
+
+        # Obtener el directorio del script
+        self.script_dir = os.path.dirname(os.path.abspath(__file__))
+
+        self.set_background(os.path.join(self.script_dir, "fondo.jpg"))
         self.show_main()
 
     def set_background(self, image_path):
@@ -34,7 +38,7 @@ class App:
 
     def acceder(self):
         # Directorio con las imágenes
-        image_folder = "/home/pi/reconocimiento_facial/tkinter/fotos/"  # Actualiza la ruta para Raspberry Pi
+        image_folder = os.path.join(self.script_dir, "fotos")
         self.known_face_encodings = {}
         for image_name in os.listdir(image_folder):
             image_path = os.path.join(image_folder, image_name)
@@ -126,10 +130,10 @@ class App:
 
     def administar(self):
         self.clear_frame()
-        tk.Label(self.root, text="Administar Usuarios", font=('Helvetica', 16)).pack(pady=20)
+        tk.Label(self.root, text="Administrar Usuarios", font=('Helvetica', 16)).pack(pady=20)
         tk.Button(self.root, text="Crear Usuario", command=self.agregar_usuario, height=2, width=50).pack(pady=10)
         tk.Button(self.root, text="Eliminar Usuarios", command=self.eliminar_usuario, height=2, width=50).pack(pady=10)
-        tk.Button(self.root, text="Administar Medicamentos", command=self.administar_medicamento, height=2, width=50).pack(pady=10)
+        tk.Button(self.root, text="Administrar Medicamentos", command=self.administar_medicamento, height=2, width=50).pack(pady=10)
         tk.Button(self.root, text="Regresar", command=self.show_main, height=2, width=50).pack(pady=20)
 
     def agregar_usuario(self):
@@ -191,14 +195,14 @@ class App:
                         tk.messagebox.showerror("Error", "Por favor, escribe el nombre del usuario.")
                         return
                     # Guardar la foto con el nombre ingresado
-                    save_path = f"/home/pi/reconocimiento_facial/tkinter/fotos/{user_name}.jpg"  # Actualiza la ruta
+                    save_path = os.path.join(self.script_dir, "fotos", f"{user_name}.jpg")
                     cv2.imwrite(save_path, frame)
-                    engine = create_engine("sqlite:///dataBase.db")  # Cambia por la ruta de tu base de datos
+                    engine = create_engine(f"sqlite:///{os.path.join(self.script_dir, 'dataBase.db')}")
                     Session = sessionmaker(bind=engine)
                     session = Session()
                     nuevo_usuario = Usuario(
-                        user=user_name,  # Reemplaza con el nombre del usuario
-                        foto=save_path  # Reemplaza con la ruta de la foto
+                        user=user_name,
+                        foto=save_path
                     )
 
                     # Agregar a la sesión y confirmar los cambios
@@ -222,7 +226,7 @@ class App:
         tk.Label(self.root, text="Eliminar Usuarios", font=('Helvetica', 16)).pack(pady=20)
 
         # Crear una conexión con la base de datos
-        engine = create_engine("sqlite:///dataBase.db")  # Cambia por tu ruta de base de datos
+        engine = create_engine(f"sqlite:///{os.path.join(self.script_dir, 'dataBase.db')}")
         Session = sessionmaker(bind=engine)
         session = Session()
 
@@ -270,9 +274,10 @@ class App:
                         tk.messagebox.showinfo("Éxito", f"Usuario '{usuario_seleccionado}' eliminado correctamente.")
 
                         # Actualizar el Combobox
-                        self.combo_usuarios['values'] = [
-                            usuario.user for usuario in session.query(Usuario).all()
-                        ]
+                        session = Session()
+                        usuarios = session.query(Usuario).all()
+                        session.close()
+                        self.combo_usuarios['values'] = [usuario.user for usuario in usuarios]
                         self.combo_usuarios.set("")  # Limpiar la selección
                     else:
                         tk.messagebox.showerror("Error", "No se encontró el usuario seleccionado.")
@@ -291,7 +296,7 @@ class App:
 
         # Combobox para seleccionar usuario
         tk.Label(self.root, text="Selecciona un Usuario").pack(pady=5)
-        engine = create_engine("sqlite:///dataBase.db")  # Cambia por la ruta de tu base de datos
+        engine = create_engine(f"sqlite:///{os.path.join(self.script_dir, 'dataBase.db')}")
         Session = sessionmaker(bind=engine)
         session = Session()
         usuarios = session.query(Usuario).all()
@@ -413,12 +418,12 @@ class App:
         self.clear_frame()
         tk.Label(self.root, text="Bienvenido a PILBOT !", font=('Helvetica', 16)).pack(pady=20)
         tk.Button(self.root, text="Acceder", command=self.acceder, height=3, width=50).pack(pady=20)
-        tk.Button(self.root, text="Administar", command=self.administar, height=3, width=50).pack(pady=20)
+        tk.Button(self.root, text="Administrar", command=self.administar, height=3, width=50).pack(pady=20)
 
     def clear_frame(self):
         for widget in self.root.winfo_children():
             widget.destroy()
-        self.set_background("fondo.jpg")  # Restablece el fondo después de limpiar los widgets
+        self.set_background(os.path.join(self.script_dir, "fondo.jpg"))  # Restablece el fondo después de limpiar los widgets
 
 if __name__ == "__main__":
     root = tk.Tk()
