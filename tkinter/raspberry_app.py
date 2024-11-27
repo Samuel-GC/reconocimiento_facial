@@ -406,9 +406,10 @@ class App:
         tk.Button(self.root, text="Regresar", command=self.administar, height=2, width=50).pack(pady=20)
 
     def show_main(self):
-        if hasattr(self, 'picam2'):
+        if hasattr(self, 'picam2') and self.picam2 is not None:
             self.picam2.stop()
             del self.picam2  # Libera la cámara cuando regresas al menú principal
+            self.picam2 = None  # Reinicia self.picam2 a None
         self.clear_frame()
         tk.Label(self.root, text="Bienvenido a PILBOT !", font=('Helvetica', 16)).pack(pady=20)
         tk.Button(self.root, text="Acceder", command=self.acceder, height=3, width=50).pack(pady=20)
