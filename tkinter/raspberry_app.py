@@ -8,7 +8,9 @@ from tkinter import messagebox
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from dataBase.model import * 
+from dataBase.model import *
+
+from picamera2 import Picamera2  # Importar Picamera2
 
 class App:
     def __init__(self, root):
@@ -16,9 +18,10 @@ class App:
         self.root.title("Aplicación de Múltiples Vistas")
         self.root.geometry("900x800")
         self.root.resizable(False, False)
-        self.cap = None  # Inicializa self.cap aquí
+        self.picam2 = None  # Inicializa la cámara como None
         self.set_background("fondo.jpg")
         self.show_main()
+
     def set_background(self, image_path):
         """
         Configura un fondo para el frame principal.
@@ -29,56 +32,58 @@ class App:
         bg_label = tk.Label(self.root, image=self.frame_background)
         bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-    
     def acceder(self):
         # Directorio con las imágenes
-        image_folder = "D:/escritorio/reconocimiento_facial/tkinter/fotos/"
+        image_folder = "/home/pi/reconocimiento_facial/tkinter/fotos/"  # Actualiza la ruta para Raspberry Pi
         self.known_face_encodings = {}
         for image_name in os.listdir(image_folder):
             image_path = os.path.join(image_folder, image_name)
-            
+
             # Leer la imagen
             img = cv2.imread(image_path)
             if img is None:
                 print(f"Error al cargar {image_name}, se omitirá.")
                 continue
-            
+
             # Detectar ubicaciones de rostros en la imagen
             face_locations = face_recognition.face_locations(img)
             if not face_locations:
                 print(f"No se detectaron rostros en {image_name}, se omitirá.")
                 continue
-            
+
             # Tomar la primera cara detectada (puedes modificar para múltiples caras)
             face_loc = face_locations[0]
-            
+
             # Obtener la codificación del rostro
             face_encoding = face_recognition.face_encodings(img, known_face_locations=[face_loc])[0]
-            
+
             # Guardar la codificación con el nombre de la imagen
             self.known_face_encodings[image_name] = face_encoding
-        
+
         # Comprobar que se hayan cargado codificaciones
         if not self.known_face_encodings:
             print("No se encontraron codificaciones válidas.")
             return
-        
-        # print("Codificaciones cargadas con éxito:", list(self.known_face_encodings.keys()))
-    
+
         self.clear_frame()
         tk.Label(self.root, text="Acceder a tus Medicamentos", font=('Helvetica', 16)).pack(pady=20)
-        self.cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)  # Inicia la captura de la cámara web
+
+        # Inicializar la cámara de Raspberry Pi
+        self.picam2 = Picamera2()
+        self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
+        self.picam2.start()
+
         self.video_label = tk.Label(self.root)
         self.video_label.pack(pady=20)
         self.update_video()  # Inicia la actualización del video en la GUI
-         
+
         tk.Button(self.root, text="Regresar", command=self.show_main, height=2, width=50).pack(pady=20)
 
     def update_video(self):
         frame_counter = 0
-        if self.cap and self.cap.isOpened():  # Asegúrate de que la cámara esté abierta
-            ret, frame = self.cap.read()
-            if ret:
+        if self.picam2:
+            frame = self.picam2.capture_array()
+            if frame is not None:
                 if frame_counter % 5 == 0 or frame_counter == 0:
                     frame = cv2.flip(frame, 1)
                     face_locations = face_recognition.face_locations(frame)
@@ -87,7 +92,7 @@ class App:
                     for face_location in face_locations:
                         # Obtener codificación de la cara detectada en el frame
                         face_frame_encodings = face_recognition.face_encodings(frame, known_face_locations=[face_location])[0]
-                        
+
                         # Comparar con todas las codificaciones conocidas
                         name = "Desconocido"
                         color = (50, 50, 225)
@@ -95,21 +100,21 @@ class App:
                             result = face_recognition.compare_faces([known_encoding], face_frame_encodings, tolerance=0.6)
                             face_distance = face_recognition.face_distance([known_encoding], face_frame_encodings)[0]
                             similarity_percentage = round((1 - face_distance) * 100, 0)
-                            
+
                             if result[0]:
-                                known_name=known_name.split(".")[0]
+                                known_name = known_name.split(".")[0]
                                 name = f"{known_name} | {similarity_percentage}%"
                                 color = (125, 220, 0)
                                 break  # Salir del bucle si se encuentra una coincidencia
                         print(known_name)
                         # Dibujar rectángulos y texto en el frame
-                        cv2.rectangle(frame, (face_location[3], face_location[2]), 
-                                    (face_location[1], face_location[2] + 30), color, -1)
-                        cv2.rectangle(frame, (face_location[3], face_location[0]), 
-                                    (face_location[1], face_location[2]), color, 2)
-                        cv2.putText(frame, name, (face_location[3], face_location[2] + 20), 
+                        cv2.rectangle(frame, (face_location[3], face_location[2]),
+                                      (face_location[1], face_location[2] + 30), color, -1)
+                        cv2.rectangle(frame, (face_location[3], face_location[0]),
+                                      (face_location[1], face_location[2]), color, 2)
+                        cv2.putText(frame, name, (face_location[3], face_location[2] + 20),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1)
-                
+
                 # Convertir el frame a un formato compatible con Tkinter
                 cv_img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(cv_img)
@@ -117,7 +122,7 @@ class App:
                 imgtk = ImageTk.PhotoImage(image=img)
                 self.video_label.imgtk = imgtk
                 self.video_label.configure(image=imgtk)
-                self.video_label.after(10, self.update_video)  # Llama a la misma función después de 10 ms
+            self.video_label.after(10, self.update_video)  # Llama a la misma función después de 10 ms
 
     def administar(self):
         self.clear_frame()
@@ -134,14 +139,16 @@ class App:
         name_entry = tk.Entry(self.root, font=('Helvetica', 12), width=30)
         name_entry.pack(pady=10)
         # Sección de cámara
-        self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        self.picam2 = Picamera2()
+        self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
+        self.picam2.start()
         video_label = tk.Label(self.root)
         video_label.pack(pady=10)
 
         def update_camera_photo():
-            if self.cap and self.cap.isOpened():
-                ret, frame = self.cap.read()
-                if ret:
+            if self.picam2:
+                frame = self.picam2.capture_array()
+                if frame is not None:
                     frame = cv2.flip(frame, 1)
 
                     # Dimensiones del recuadro amarillo con forma alargada
@@ -176,15 +183,15 @@ class App:
                 video_label.after(10, update_camera_photo)
 
         def capture_photo():
-            if self.cap and self.cap.isOpened():
-                ret, frame = self.cap.read()
-                if ret:
+            if self.picam2:
+                frame = self.picam2.capture_array()
+                if frame is not None:
                     user_name = name_entry.get().strip()
                     if not user_name:
                         tk.messagebox.showerror("Error", "Por favor, escribe el nombre del usuario.")
                         return
                     # Guardar la foto con el nombre ingresado
-                    save_path = f"D:/escritorio/reconocimiento_facial/tkinter/fotos/{user_name}.jpg"
+                    save_path = f"/home/pi/reconocimiento_facial/tkinter/fotos/{user_name}.jpg"  # Actualiza la ruta
                     cv2.imwrite(save_path, frame)
                     engine = create_engine("sqlite:///dataBase.db")  # Cambia por la ruta de tu base de datos
                     Session = sessionmaker(bind=engine)
@@ -198,18 +205,16 @@ class App:
                     session.add(nuevo_usuario)
                     session.commit()
 
-                    
                     # Cerrar la sesión
                     session.close()
                     tk.messagebox.showinfo("Éxito", f"Usuario : {user_name} ha sido creado.")
-                    
                 else:
                     tk.messagebox.showerror("Error", "No se pudo capturar la foto.")
-        
+
         # Botón para capturar la foto
         tk.Button(self.root, text="Agregar Usuario", command=capture_photo, height=2, width=50).pack(pady=20)
         tk.Button(self.root, text="Regresar", command=self.administar, height=2, width=50).pack(pady=20)
-        
+
         update_camera_photo()
 
     def eliminar_usuario(self):
@@ -252,7 +257,6 @@ class App:
 
                         # Eliminar foto del usuario
                         if usuario.foto:
-                            import os
                             try:
                                 os.remove(usuario.foto)  # Eliminar archivo de foto
                             except FileNotFoundError:
@@ -281,8 +285,6 @@ class App:
         # Botón para regresar
         tk.Button(self.root, text="Regresar", command=self.administar, height=2, width=50).pack(pady=20)
 
-        
-    
     def administar_medicamento(self):
         self.clear_frame()
         tk.Label(self.root, text="Administrar Medicamentos", font=('Helvetica', 16)).pack(pady=20)
@@ -403,10 +405,10 @@ class App:
         tk.Button(self.root, text="Eliminar Medicamento", command=eliminar_medicamento, height=2, width=50).pack(pady=5)
         tk.Button(self.root, text="Regresar", command=self.administar, height=2, width=50).pack(pady=20)
 
-
     def show_main(self):
-        if self.cap and self.cap.isOpened():  # Asegúrate de liberar la cámara solo si está abierta
-            self.cap.release()  # Libera la cámara web cuando regresas al menú principal
+        if hasattr(self, 'picam2'):
+            self.picam2.stop()
+            del self.picam2  # Libera la cámara cuando regresas al menú principal
         self.clear_frame()
         tk.Label(self.root, text="Bienvenido a PILBOT !", font=('Helvetica', 16)).pack(pady=20)
         tk.Button(self.root, text="Acceder", command=self.acceder, height=3, width=50).pack(pady=20)
@@ -416,7 +418,6 @@ class App:
         for widget in self.root.winfo_children():
             widget.destroy()
         self.set_background("fondo.jpg")  # Restablece el fondo después de limpiar los widgets
-
 
 if __name__ == "__main__":
     root = tk.Tk()

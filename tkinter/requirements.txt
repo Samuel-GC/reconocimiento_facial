@@ -1,0 +1,6 @@
+face_recognition
+opencv-python
+Pillow
+sqlalchemy
+picamera2
+numpy
