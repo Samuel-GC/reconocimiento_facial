@@ -34,7 +34,8 @@ class App:
         Configura un fondo para el frame principal.
         """
         image = Image.open(image_path)
-        image = image.resize((900, 800))  # Ajusta el tamaño del fondo al de la ventana
+      
+        image.resize((self.root.winfo_width(), self.root.winfo_height()))
         self.frame_background = ImageTk.PhotoImage(image)
         bg_label = tk.Label(self.root, image=self.frame_background)
         bg_label.place(x=0, y=0, relwidth=1, relheight=1)
@@ -143,6 +144,7 @@ class App:
                             tk.messagebox.showinfo("Éxito", f"Usuario : {clave} ha sido reconocido.")
                             self.user=clave
                             self.Resumen()
+                            return
 
             self.video_label.after(10, self.update_video)  # Llama a la misma función después de 10 ms
                 
@@ -235,7 +237,7 @@ class App:
 
 
             rutas={
-                "A":11.35,
+                "A":10.8,
                 "B":9.8,
                 "C":8.1,
                 "D":6.4,
@@ -247,7 +249,7 @@ class App:
                 pwm.ChangeDutyCycle(2.4)   
                 time.sleep(1.5)
                 if tipo =="A":
-                    pwm_2.ChangeDutyCycle(11.2)  
+                    pwm_2.ChangeDutyCycle(10.4)  
                     time.sleep(1.5)
                     pwm_2.ChangeDutyCycle(rutas[tipo])  
                 else:
