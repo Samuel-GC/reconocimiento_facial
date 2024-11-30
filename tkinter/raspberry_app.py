@@ -27,6 +27,9 @@ class App:
         self.cap = None  # Inicializa self.cap aquí
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.picam2 = None 
+        self.picam2 = Picamera2()
+        self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
+        self.picam2.start()
         self.set_background("fondo.jpg")
         self.show_main()
     def set_background(self, image_path):
@@ -86,11 +89,11 @@ class App:
         #     self.picam2.stop()
         # except:pass
         # self.picam2=None
-        try:
-            self.picam2 = Picamera2()
-            self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
-            self.picam2.start()
-        except:pass
+        # try:
+        #     self.picam2 = Picamera2()
+        #     self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
+        #     self.picam2.start()
+        # except:pass
     
         self.video_label = tk.Label(self.root)
         self.video_label.pack(pady=20)
@@ -292,13 +295,13 @@ class App:
         # Sección de cámara
         # self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
         
-        try:
-            self.picam2.stop()
-        except:pass
-        self.picam2=None
-        self.picam2 = Picamera2()
-        self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
-        self.picam2.start()
+        # try:
+        #     self.picam2.stop()
+        # except:pass
+        # self.picam2=None
+        # self.picam2 = Picamera2()
+        # self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
+        # self.picam2.start()
         video_label = tk.Label(self.root)
         video_label.pack(pady=10)
 
