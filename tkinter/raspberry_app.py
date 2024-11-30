@@ -145,6 +145,8 @@ class App:
                             self.user=clave
                             self.Resumen()
                             self.picam2.stop()
+                            return
+
 
             self.video_label.after(10, self.update_video)  # Llama a la misma función después de 10 ms
                 
@@ -237,7 +239,7 @@ class App:
 
 
             rutas={
-                "A":10.8,
+                "A":10.9,
                 "B":9.8,
                 "C":8.1,
                 "D":6.4,
@@ -249,7 +251,7 @@ class App:
                 pwm.ChangeDutyCycle(2.4)   
                 time.sleep(1.5)
                 if tipo =="A":
-                    pwm_2.ChangeDutyCycle(10.4)  
+                    pwm_2.ChangeDutyCycle(10.6)  
                     time.sleep(1.5)
                     pwm_2.ChangeDutyCycle(rutas[tipo])  
                 else:
