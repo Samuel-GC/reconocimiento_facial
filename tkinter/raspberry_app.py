@@ -20,7 +20,8 @@ class App:
         self.root = root
         self.root.title("Aplicación de Múltiples Vistas")
         self.root.geometry("900x800")
-        self.root.resizable(False, False)
+        # self.root.resizable(False, False)
+        self.root.state('zoomed')
         self.cap = None  # Inicializa self.cap aquí
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.picam2 = None 
@@ -204,7 +205,58 @@ class App:
                 if turno == turno_actual:
                     medicamentos_por_turno[turno_actual].append(med)
             self.lista_accion=medicamentos_por_turno[turno_actual]
-            print(self.lista_accion)
+
+
+            
+            # Limpiar el estado de los pines GPIO antes de iniciar
+            GPIO.cleanup()
+
+            # Configura el modo de numeraciÃ³n de pines
+            GPIO.setmode(GPIO.BCM)
+
+            # Configura el pin GPIO donde estÃ¡ conectado el servo
+            servo_pin = 17
+            GPIO.setup(servo_pin, GPIO.OUT)
+
+
+            # Configura la seÃ±al PWM en el pin del servo
+            pwm = GPIO.PWM(servo_pin, 50)  # 50Hz, frecuencia estÃ¡ndar para servos
+            pwm.start(0)  # Inicia con el pulso en 0%
+
+            servo_pin_2= 18
+            GPIO.setup(servo_pin_2, GPIO.OUT)
+
+
+            # Configura la seÃ±al PWM en el pin del servo
+            pwm_2 = GPIO.PWM(servo_pin_2, 50)  # 50Hz, frecuencia estÃ¡ndar para servos
+            pwm_2.start(0)  # Inicia con el pulso en 0%
+
+
+            rutas={
+                "A":11.35,
+                "B":9.8,
+                "C":8.1,
+                "D":6.4,
+                "E":4.7,
+}
+            for tipo in self.lista_accion:
+                pwm_2.ChangeDutyCycle(12.5)   
+                time.sleep(1.5)
+                pwm.ChangeDutyCycle(2.4)   
+                time.sleep(1.5)
+                if tipo =="A":
+                    pwm_2.ChangeDutyCycle(11.2)  
+                    time.sleep(1.5)
+                    pwm_2.ChangeDutyCycle(rutas[tipo])  
+                else:
+                    pwm_2.ChangeDutyCycle(rutas[tipo])   
+                time.sleep(1.5)
+                pwm.ChangeDutyCycle(3.9)   
+                time.sleep(1.5)
+                pwm.ChangeDutyCycle(9.5)   
+                time.sleep(1.5)
+
+             
             # Mostrar en un Label los medicamentos correspondientes al turno actual
             tk.Label(self.root, text=f"Medicamentos para el turno de {obtener_turno(hora_actual)}:", font=('Helvetica', 12)).pack(pady=10)
             
@@ -445,7 +497,7 @@ class App:
 
         # Combobox para nuevo medicamento y horario
         tk.Label(self.root, text="Selecciona un Nuevo Medicamento").pack(pady=5)
-        self.combo_nuevo_medicamento = ttk.Combobox(self.root, state="readonly", values=["A", "B", "C", "D"])
+        self.combo_nuevo_medicamento = ttk.Combobox(self.root, state="readonly", values=["A", "B", "C", "D","E"])
         self.combo_nuevo_medicamento.pack(pady=5)
 
         tk.Label(self.root, text="Selecciona un Horario").pack(pady=5)

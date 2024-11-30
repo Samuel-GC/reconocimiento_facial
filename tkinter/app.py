@@ -16,7 +16,8 @@ class App:
         self.root = root
         self.root.title("Aplicación de Múltiples Vistas")
         self.root.geometry("900x800")
-        self.root.resizable(False, False)
+        # self.root.resizable(False, False)
+        self.root.state('zoomed')
         self.cap = None  # Inicializa self.cap aquí
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -433,7 +434,7 @@ class App:
 
         # Combobox para nuevo medicamento y horario
         tk.Label(self.root, text="Selecciona un Nuevo Medicamento").pack(pady=5)
-        self.combo_nuevo_medicamento = ttk.Combobox(self.root, state="readonly", values=["A", "B", "C", "D"])
+        self.combo_nuevo_medicamento = ttk.Combobox(self.root, state="readonly", values=["A", "B", "C", "D","E"])
         self.combo_nuevo_medicamento.pack(pady=5)
 
         tk.Label(self.root, text="Selecciona un Horario").pack(pady=5)
