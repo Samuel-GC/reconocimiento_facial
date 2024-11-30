@@ -89,7 +89,7 @@ class App:
         self.video_label.pack(pady=20)
         self.update_video()  # Inicia la actualización del video en la GUI
          
-        tk.Button(self.root, text="Regresar", command=self.show_main, height=2, width=50).pack(pady=20)
+        tk.Button(self.root, text="Regresar", command=self.regenerar, height=2, width=50).pack(pady=20)
 
     def update_video(self):
         frame_counter = 0
@@ -144,8 +144,7 @@ class App:
                             tk.messagebox.showinfo("Éxito", f"Usuario : {clave} ha sido reconocido.")
                             self.user=clave
                             self.Resumen()
-                            self.picam2.stop()
-                            return
+                       
 
 
             self.video_label.after(10, self.update_video)  # Llama a la misma función después de 10 ms
@@ -239,7 +238,7 @@ class App:
 
 
             rutas={
-                "A":10.9,
+                "A":11.2,
                 "B":9.8,
                 "C":8.1,
                 "D":6.4,
@@ -251,7 +250,7 @@ class App:
                 pwm.ChangeDutyCycle(2.4)   
                 time.sleep(1.5)
                 if tipo =="A":
-                    pwm_2.ChangeDutyCycle(10.6)  
+                    pwm_2.ChangeDutyCycle(11 )  
                     time.sleep(1.5)
                     pwm_2.ChangeDutyCycle(rutas[tipo])  
                 else:
@@ -272,7 +271,7 @@ class App:
 
         session.close()
 
-        tk.Button(self.root, text="Regresar", command=self.show_main, height=2, width=50).pack(pady=20)
+        tk.Button(self.root, text="Regresar", command=self.regenerar, height=2, width=50).pack(pady=20)
 
  
 #-----------------------------------------------------------------------------------------------
