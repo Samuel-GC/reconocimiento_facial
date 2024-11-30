@@ -612,11 +612,11 @@ class App:
 
 
     def show_main(self):
-        try:
-            self.picam2.stop()
-        except:pass
-        if self.cap and self.cap.isOpened():  # Asegúrate de liberar la cámara solo si está abierta
-            self.cap.release()  # Libera la cámara web cuando regresas al menú principal
+        # try:
+        #     self.picam2.stop()
+        # except:pass
+        # if self.cap and self.cap.isOpened():  # Asegúrate de liberar la cámara solo si está abierta
+        #     self.cap.release()  # Libera la cámara web cuando regresas al menú principal
         self.clear_frame()
         tk.Label(self.root, text="Bienvenido a PILBOT !", font=('Helvetica', 16)).pack(pady=20)
         tk.Button(self.root, text="Acceder", command=self.acceder, height=3, width=50).pack(pady=20)
