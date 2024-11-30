@@ -28,6 +28,7 @@ class App:
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.picam2 = None 
         self.set_background("fondo.jpg")
+        self.is_running = False 
         self.show_main()
     def set_background(self, image_path):
         """
@@ -284,9 +285,15 @@ class App:
         name_entry.pack(pady=10)
         # Sección de cámara
         # self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-        self.picam2 = Picamera2()
+        if self.is_running:
+            # Si la cámara ya está en ejecución, detenerla antes de reiniciarla
+            self.picam2.stop()
+            self.is_running = False  # Actualizar el estado
+
+        # Configurar y comenzar la cámara
         self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
         self.picam2.start()
+        self.is_running = True  # Actualizar el estado
         video_label = tk.Label(self.root)
         video_label.pack(pady=10)
 
