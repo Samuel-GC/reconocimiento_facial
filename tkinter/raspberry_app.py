@@ -82,6 +82,10 @@ class App:
         self.clear_frame()
         tk.Label(self.root, text="Acceder a tus Medicamentos", font=('Helvetica', 16)).pack(pady=20)
         # self.cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)  # Inicia la captura de la cámara web
+        try:
+            self.picam2.stop()
+        except:pass
+        self.picam2=None
         self.picam2 = Picamera2()
         self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
         self.picam2.start()
@@ -284,6 +288,11 @@ class App:
         name_entry.pack(pady=10)
         # Sección de cámara
         # self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        
+        try:
+            self.picam2.stop()
+        except:pass
+        self.picam2=None
         self.picam2 = Picamera2()
         self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
         self.picam2.start()
