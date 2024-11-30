@@ -19,9 +19,11 @@ class App:
     def __init__(self, root):
         self.root = root
         self.root.title("Aplicación de Múltiples Vistas")
-        self.root.geometry("900x800")
-        # self.root.resizable(False, False)
-        self.root.state('zoomed')
+        screen_width = self.root.winfo_screenwidth()
+        screen_height = self.root.winfo_screenheight()
+
+        # Ajustar el tamaño de la ventana al tamaño de la pantalla
+        self.root.geometry(f"{screen_width}x{screen_height}+0+0")
         self.cap = None  # Inicializa self.cap aquí
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.picam2 = None 
