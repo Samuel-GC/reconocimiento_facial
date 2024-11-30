@@ -384,7 +384,7 @@ class App:
         # Botón para iniciar la captura de fotos
         add_button = tk.Button(self.root, text="Agregar Usuario", font=('Helvetica', 12), height=2, width=50, command=capture_photo)
         add_button.pack(pady=20)
-        tk.Button(self.root, text="Regresar", command=self.regenerar, font=('Helvetica', 12), height=2, width=50).pack(pady=20)
+        tk.Button(self.root, text="Regresar", command=self.show_main, font=('Helvetica', 12), height=2, width=50).pack(pady=20)
         # Iniciar la actualización de la cámara
         update_camera_photo()
     def regenerar(self):
@@ -597,6 +597,9 @@ class App:
 
 
     def show_main(self):
+        try:
+            self.picam2.stop()
+        except:pass
         if self.cap and self.cap.isOpened():  # Asegúrate de liberar la cámara solo si está abierta
             self.cap.release()  # Libera la cámara web cuando regresas al menú principal
         self.clear_frame()
