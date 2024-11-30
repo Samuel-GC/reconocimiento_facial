@@ -282,8 +282,9 @@ class App:
                 def take_next_photo():
                     nonlocal captured
                     if captured < num_photos:
-                        ret, frame = self.cap.read()
-                        if ret:
+                        if self.picam2:
+                            frame = self.picam2.capture_array()
+                   
                             user_name = name_entry.get().strip()
                             if not user_name:
                                 tk.messagebox.showerror("Error", "Por favor, escribe el nombre del usuario.")
