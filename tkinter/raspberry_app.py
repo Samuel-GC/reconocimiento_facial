@@ -28,7 +28,6 @@ class App:
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
         self.picam2 = None 
         self.set_background("fondo.jpg")
-        self.is_running = False 
         self.show_main()
     def set_background(self, image_path):
         """
@@ -83,15 +82,9 @@ class App:
         self.clear_frame()
         tk.Label(self.root, text="Acceder a tus Medicamentos", font=('Helvetica', 16)).pack(pady=20)
         # self.cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)  # Inicia la captura de la cámara web
-        if self.is_running:
-            # Si la cámara ya está en ejecución, detenerla antes de reiniciarla
-            self.picam2.stop()
-            self.is_running = False  # Actualizar el estado
-
-        # Configurar y comenzar la cámara
+        self.picam2 = Picamera2()
         self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
         self.picam2.start()
-        self.is_running = True  
         self.video_label = tk.Label(self.root)
         self.video_label.pack(pady=20)
         self.update_video()  # Inicia la actualización del video en la GUI
@@ -278,7 +271,7 @@ class App:
 
         session.close()
 
-        tk.Button(self.root, text="Regresar", command=self.regenerar, height=2, width=50).pack(pady=20)
+        tk.Button(self.root, text="Regresar", command=self.show_main, height=2, width=50).pack(pady=20)
 
  
 #-----------------------------------------------------------------------------------------------
