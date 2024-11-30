@@ -144,7 +144,7 @@ class App:
                             tk.messagebox.showinfo("Éxito", f"Usuario : {clave} ha sido reconocido.")
                             self.user=clave
                             self.Resumen()
-                            return
+                            self.picam2.stop()
 
             self.video_label.after(10, self.update_video)  # Llama a la misma función después de 10 ms
                 
