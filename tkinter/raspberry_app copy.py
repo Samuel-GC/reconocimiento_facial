@@ -5,11 +5,12 @@ from PIL import Image, ImageTk
 import face_recognition
 import os
 from tkinter import messagebox
-from datetime import datetime 
-import time
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from dataBase.model import * 
+from dataBase.model import *
+
+from picamera2 import Picamera2  # Importar Picamera2
 
 class App:
     def __init__(self, root):
@@ -17,11 +18,14 @@ class App:
         self.root.title("Aplicación de Múltiples Vistas")
         self.root.geometry("900x800")
         self.root.resizable(False, False)
-        self.cap = None  # Inicializa self.cap aquí
+        self.picam2 = None  # Inicializa la cámara como None
+
+        # Obtener el directorio del script
         self.script_dir = os.path.dirname(os.path.abspath(__file__))
 
-        self.set_background("fondo.jpg")
+        self.set_background(os.path.join(self.script_dir, "fondo.jpg"))
         self.show_main()
+
     def set_background(self, image_path):
         """
         Configura un fondo para el frame principal.
@@ -32,59 +36,58 @@ class App:
         bg_label = tk.Label(self.root, image=self.frame_background)
         bg_label.place(x=0, y=0, relwidth=1, relheight=1)
 
-
-    
     def acceder(self):
         # Directorio con las imágenes
-        
         image_folder = os.path.join(self.script_dir, "fotos")
         self.known_face_encodings = {}
-        self.reconocimiento = {}
         for image_name in os.listdir(image_folder):
             image_path = os.path.join(image_folder, image_name)
-            
+
             # Leer la imagen
             img = cv2.imread(image_path)
             if img is None:
                 print(f"Error al cargar {image_name}, se omitirá.")
                 continue
-            
+
             # Detectar ubicaciones de rostros en la imagen
             face_locations = face_recognition.face_locations(img)
             if not face_locations:
                 print(f"No se detectaron rostros en {image_name}, se omitirá.")
                 continue
-            
+
             # Tomar la primera cara detectada (puedes modificar para múltiples caras)
             face_loc = face_locations[0]
-            
+
             # Obtener la codificación del rostro
             face_encoding = face_recognition.face_encodings(img, known_face_locations=[face_loc])[0]
-            
+
             # Guardar la codificación con el nombre de la imagen
             self.known_face_encodings[image_name] = face_encoding
-        
+
         # Comprobar que se hayan cargado codificaciones
         if not self.known_face_encodings:
             print("No se encontraron codificaciones válidas.")
             return
-        
-        # print("Codificaciones cargadas con éxito:", list(self.known_face_encodings.keys()))
-    
+
         self.clear_frame()
         tk.Label(self.root, text="Acceder a tus Medicamentos", font=('Helvetica', 16)).pack(pady=20)
-        self.cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)  # Inicia la captura de la cámara web
+
+        # Inicializar la cámara de Raspberry Pi
+        self.picam2 = Picamera2()
+        self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
+        self.picam2.start()
+
         self.video_label = tk.Label(self.root)
         self.video_label.pack(pady=20)
         self.update_video()  # Inicia la actualización del video en la GUI
-         
+
         tk.Button(self.root, text="Regresar", command=self.show_main, height=2, width=50).pack(pady=20)
 
     def update_video(self):
         frame_counter = 0
-        if self.cap and self.cap.isOpened():  # Asegúrate de que la cámara esté abierta
-            ret, frame = self.cap.read()
-            if ret:
+        if self.picam2:
+            frame = self.picam2.capture_array()
+            if frame is not None:
                 if frame_counter % 5 == 0 or frame_counter == 0:
                     frame = cv2.flip(frame, 1)
                     face_locations = face_recognition.face_locations(frame)
@@ -93,7 +96,7 @@ class App:
                     for face_location in face_locations:
                         # Obtener codificación de la cara detectada en el frame
                         face_frame_encodings = face_recognition.face_encodings(frame, known_face_locations=[face_location])[0]
-                        
+
                         # Comparar con todas las codificaciones conocidas
                         name = "Desconocido"
                         color = (50, 50, 225)
@@ -101,26 +104,21 @@ class App:
                             result = face_recognition.compare_faces([known_encoding], face_frame_encodings, tolerance=0.6)
                             face_distance = face_recognition.face_distance([known_encoding], face_frame_encodings)[0]
                             similarity_percentage = round((1 - face_distance) * 100, 0)
-                            
+
                             if result[0]:
-                                known_name=known_name.split("_")[0]
+                                known_name = known_name.split(".")[0]
                                 name = f"{known_name} | {similarity_percentage}%"
                                 color = (125, 220, 0)
                                 break  # Salir del bucle si se encuentra una coincidencia
-                     
+                        print(known_name)
                         # Dibujar rectángulos y texto en el frame
-                        cv2.rectangle(frame, (face_location[3], face_location[2]), 
-                                    (face_location[1], face_location[2] + 30), color, -1)
-                        cv2.rectangle(frame, (face_location[3], face_location[0]), 
-                                    (face_location[1], face_location[2]), color, 2)
-                        cv2.putText(frame, name, (face_location[3], face_location[2] + 20), 
+                        cv2.rectangle(frame, (face_location[3], face_location[2]),
+                                      (face_location[1], face_location[2] + 30), color, -1)
+                        cv2.rectangle(frame, (face_location[3], face_location[0]),
+                                      (face_location[1], face_location[2]), color, 2)
+                        cv2.putText(frame, name, (face_location[3], face_location[2] + 20),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1)
-                        if name!="Desconocido":
-                            if known_name not in self.reconocimiento:
-                                self.reconocimiento[known_name] = 0
-                            else:
-                                self.reconocimiento[known_name] += 1
-                
+
                 # Convertir el frame a un formato compatible con Tkinter
                 cv_img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 img = Image.fromarray(cv_img)
@@ -128,108 +126,33 @@ class App:
                 imgtk = ImageTk.PhotoImage(image=img)
                 self.video_label.imgtk = imgtk
                 self.video_label.configure(image=imgtk)
-                for clave, valor in self.reconocimiento.items():
-                    if valor == 10:
-                        tk.messagebox.showinfo("Éxito", f"Usuario : {clave} ha sido reconocido.")
-                        self.user=clave
-                        self.Resumen()
-
-                self.video_label.after(10, self.update_video)  # Llama a la misma función después de 10 ms
-                
+            self.video_label.after(10, self.update_video)  # Llama a la misma función después de 10 ms
 
     def administar(self):
         self.clear_frame()
-        tk.Label(self.root, text="Administar Usuarios", font=('Helvetica', 16)).pack(pady=20)
+        tk.Label(self.root, text="Administrar Usuarios", font=('Helvetica', 16)).pack(pady=20)
         tk.Button(self.root, text="Crear Usuario", command=self.agregar_usuario, height=2, width=50).pack(pady=10)
         tk.Button(self.root, text="Eliminar Usuarios", command=self.eliminar_usuario, height=2, width=50).pack(pady=10)
-        tk.Button(self.root, text="Administar Medicamentos", command=self.administar_medicamento, height=2, width=50).pack(pady=10)
+        tk.Button(self.root, text="Administrar Medicamentos", command=self.administar_medicamento, height=2, width=50).pack(pady=10)
         tk.Button(self.root, text="Regresar", command=self.show_main, height=2, width=50).pack(pady=20)
 
-    
-    def Resumen(self):
-        def obtener_turno(hora_actual):
-            """
-            Determina el turno basado en la hora actual.
-            Mañana: 1 AM - 12 PM
-            Tarde: 12 PM - 6 PM
-            Noche: 6 PM - 24 PM
-            """
-            if hora_actual >= 1 and hora_actual < 12:
-                return 'Mañana'
-            elif hora_actual >= 12 and hora_actual < 18:
-                return 'Tarde'
-            elif hora_actual >= 18 and hora_actual < 24:
-                return 'Noche'
-            else:
-                return 'Fuera de horario'
-        self.clear_frame()
-        tk.Label(self.root, text="Resumen", font=('Helvetica', 16)).pack(pady=20)
-
-        usuario_seleccionado = self.user
-        engine = create_engine(f"sqlite:///{os.path.join(self.script_dir, 'dataBase.db')}") # Cambia por la ruta de tu base de datos
-        Session = sessionmaker(bind=engine)
-        session = Session()
-        usuario = session.query(Usuario).filter_by(user=usuario_seleccionado).first()
-
-        if usuario and usuario.medicamentos:
-            medicamentos = [med.medicamento for med in usuario.medicamentos]
-            turnos = [med.horario for med in usuario.medicamentos]
-            medicamentos_y_turnos = list(zip(medicamentos, turnos))
-            orden_turnos = {'Mañana': 0, 'Tarde': 1, 'Noche': 2}
-            # Ordena la lista por el turno usando el diccionario de orden
-            medicamentos_y_turnos.sort(key=lambda x: orden_turnos.get(x[1], 3))  # Si no se encuentra el turno, asigna un valor alto
-
-            # Crear un Listbox para mostrar los medicamentos y turnos
-            listbox = tk.Listbox(self.root, font=('Helvetica', 12), height=10, width=50)
-            listbox.pack(pady=10)
-            # Insertar los elementos ordenados en el Listbox
-            for med, turno in medicamentos_y_turnos:
-                listbox.insert(tk.END, f"Medicamento: {med} - Hora: {turno}")
-            # Crear una lista para los medicamentos según el turno actual
-            medicamentos_por_turno = {'Mañana': [], 'Tarde': [], 'Noche': []}
-
-            # Obtener la hora actual
-            hora_actual = datetime.now().hour
-            
-            # Asignar medicamentos al turno correspondiente
-            for med, turno in zip(medicamentos, turnos):
-                turno_actual = obtener_turno(hora_actual)
-                if turno == turno_actual:
-                    medicamentos_por_turno[turno_actual].append(med)
-            self.lista_accion=medicamentos_por_turno[turno_actual]
-            print(self.lista_accion)
-            # Mostrar en un Label los medicamentos correspondientes al turno actual
-            tk.Label(self.root, text=f"Medicamentos para el turno de {obtener_turno(hora_actual)}:", font=('Helvetica', 12)).pack(pady=10)
-            
-            for turno, meds in medicamentos_por_turno.items():
-                if meds:  # Si hay medicamentos para ese turno
-                    tk.Label(self.root, text=f"{turno}: {', '.join(meds)}", font=('Helvetica', 12)).pack(pady=5)
-
-        session.close()
-
-        tk.Button(self.root, text="Regresar", command=self.show_main, height=2, width=50).pack(pady=20)
-
- 
-#-----------------------------------------------------------------------------------------------
     def agregar_usuario(self):
         self.clear_frame()
-       
         # Campo de texto para ingresar el nombre del usuario
         tk.Label(self.root, text="Escribir aquí el nombre del usuario:", font=('Helvetica', 12)).pack(pady=10)
         name_entry = tk.Entry(self.root, font=('Helvetica', 12), width=30)
         name_entry.pack(pady=10)
         # Sección de cámara
-        self.cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        self.picam2 = Picamera2()
+        self.picam2.configure(self.picam2.create_preview_configuration(main={"format": 'RGB888', "size": (640, 480)}))
+        self.picam2.start()
         video_label = tk.Label(self.root)
         video_label.pack(pady=10)
 
-        capture_label = tk.Label(self.root, text="Fotos capturadas: 0/5", font=('Helvetica', 10))
-        capture_label.pack(pady=5)
-
         def update_camera_photo():
-            if self.cap and self.cap.isOpened():
-                ret, frame = self.cap.read()
-                if ret:
+            if self.picam2:
+                frame = self.picam2.capture_array()
+                if frame is not None:
                     frame = cv2.flip(frame, 1)
 
                     # Dimensiones del recuadro amarillo con forma alargada
@@ -264,76 +187,46 @@ class App:
                 video_label.after(10, update_camera_photo)
 
         def capture_photo():
-            if self.cap and self.cap.isOpened():
-                num_photos = 5 # Número de fotos a capturar
-                captured = 0
+            if self.picam2:
+                frame = self.picam2.capture_array()
+                if frame is not None:
+                    user_name = name_entry.get().strip()
+                    if not user_name:
+                        tk.messagebox.showerror("Error", "Por favor, escribe el nombre del usuario.")
+                        return
+                    # Guardar la foto con el nombre ingresado
+                    save_path = os.path.join(self.script_dir, "fotos", f"{user_name}.jpg")
+                    cv2.imwrite(save_path, frame)
+                    engine = create_engine(f"sqlite:///{os.path.join(self.script_dir, 'dataBase.db')}")
+                    Session = sessionmaker(bind=engine)
+                    session = Session()
+                    nuevo_usuario = Usuario(
+                        user=user_name,
+                        foto=save_path
+                    )
 
-                def take_next_photo():
-                    nonlocal captured
-                    if captured < num_photos:
-                        ret, frame = self.cap.read()
-                        if ret:
-                            user_name = name_entry.get().strip()
-                            if not user_name:
-                                tk.messagebox.showerror("Error", "Por favor, escribe el nombre del usuario.")
-                                return
-                            # save_path = os.path.join(self.script_dir, "fotos", f"{user_name}")
-                            # # Guardar la foto con el nombre ingresado
-                            # if not os.path.exists(save_path):
-                            #     # Crear la carpeta
-                            #     os.makedirs(save_path)
-                            save_path = os.path.join(self.script_dir, "fotos",  f"{user_name}_{captured + 1}.jpg")
-                        
-                            
-                            cv2.imwrite(save_path, frame)
-                            captured += 1
-                            capture_label.config(text=f"Fotos capturadas: {captured}/{num_photos}")
-                            if captured >= num_photos:
-                           
-                                save_path = os.path.join(self.script_dir, "fotos", f"{user_name}",  f"{user_name}_{1}.jpg")
-                                engine = create_engine(f"sqlite:///{os.path.join(self.script_dir, 'dataBase.db')}")  # Cambia por la ruta de tu base de datos
-                                Session = sessionmaker(bind=engine)
-                                session = Session()
-                                nuevo_usuario = Usuario(
-                                    user=user_name,  # Reemplaza con el nombre del usuario
-                                    foto=save_path  # Reemplaza con la ruta de la foto
-                                )
+                    # Agregar a la sesión y confirmar los cambios
+                    session.add(nuevo_usuario)
+                    session.commit()
 
-                                # Agregar a la sesión y confirmar los cambios
-                                session.add(nuevo_usuario)
-                                session.commit()
-                                
-                                tk.messagebox.showinfo("Listo", "Se han tomado todas las fotos.")
-                            # Llamar de nuevo a la función después de 1 segundo
-                            video_label.after(1000, take_next_photo)
-                        else:
-                            tk.messagebox.showerror("Error", "No se pudo capturar la foto.")
-                  
-               
-                take_next_photo()
+                    # Cerrar la sesión
+                    session.close()
+                    tk.messagebox.showinfo("Éxito", f"Usuario : {user_name} ha sido creado.")
+                else:
+                    tk.messagebox.showerror("Error", "No se pudo capturar la foto.")
 
-        # Botón para iniciar la captura de fotos
-        add_button = tk.Button(self.root, text="Agregar Usuario", font=('Helvetica', 12), height=2, width=50, command=capture_photo)
-        add_button.pack(pady=20)
-        tk.Button(self.root, text="Regresar", command=self.regenerar, font=('Helvetica', 12), height=2, width=50).pack(pady=20)
-        # Iniciar la actualización de la cámara
+        # Botón para capturar la foto
+        tk.Button(self.root, text="Agregar Usuario", command=capture_photo, height=2, width=50).pack(pady=20)
+        tk.Button(self.root, text="Regresar", command=self.administar, height=2, width=50).pack(pady=20)
+
         update_camera_photo()
-    def regenerar(self):
-        # Destruir la ventana actual
-        self.root.destroy()
 
-        # Volver a crear la ventana
-        root = tk.Tk()
-        app = App(root)
-        root.mainloop()
-
-#-----------------------------------------------------------------------------------------------
     def eliminar_usuario(self):
         self.clear_frame()
         tk.Label(self.root, text="Eliminar Usuarios", font=('Helvetica', 16)).pack(pady=20)
 
         # Crear una conexión con la base de datos
-        engine = create_engine(f"sqlite:///{os.path.join(self.script_dir, 'dataBase.db')}")  # Cambia por tu ruta de base de datos
+        engine = create_engine(f"sqlite:///{os.path.join(self.script_dir, 'dataBase.db')}")
         Session = sessionmaker(bind=engine)
         session = Session()
 
@@ -368,16 +261,8 @@ class App:
 
                         # Eliminar foto del usuario
                         if usuario.foto:
-                             
                             try:
-                   
-
-                                for archivo in os.listdir(os.path.join(self.script_dir, "fotos")):
-                                    if archivo.startswith(usuario.user):
-                                        archivo_path = os.path.join(os.path.join(self.script_dir, "fotos"), archivo)
-                                        # Eliminar el archivo
-                                        if os.path.isfile(archivo_path):
-                                            os.remove(archivo_path)
+                                os.remove(usuario.foto)  # Eliminar archivo de foto
                             except FileNotFoundError:
                                 tk.messagebox.showwarning("Advertencia", "No se encontró la foto para eliminar.")
 
@@ -389,9 +274,10 @@ class App:
                         tk.messagebox.showinfo("Éxito", f"Usuario '{usuario_seleccionado}' eliminado correctamente.")
 
                         # Actualizar el Combobox
-                        self.combo_usuarios['values'] = [
-                            usuario.user for usuario in session.query(Usuario).all()
-                        ]
+                        session = Session()
+                        usuarios = session.query(Usuario).all()
+                        session.close()
+                        self.combo_usuarios['values'] = [usuario.user for usuario in usuarios]
                         self.combo_usuarios.set("")  # Limpiar la selección
                     else:
                         tk.messagebox.showerror("Error", "No se encontró el usuario seleccionado.")
@@ -404,15 +290,13 @@ class App:
         # Botón para regresar
         tk.Button(self.root, text="Regresar", command=self.administar, height=2, width=50).pack(pady=20)
 
-        
-    
     def administar_medicamento(self):
         self.clear_frame()
         tk.Label(self.root, text="Administrar Medicamentos", font=('Helvetica', 16)).pack(pady=20)
 
         # Combobox para seleccionar usuario
         tk.Label(self.root, text="Selecciona un Usuario").pack(pady=5)
-        engine = create_engine(f"sqlite:///{os.path.join(self.script_dir, 'dataBase.db')}")  # Cambia por la ruta de tu base de datos
+        engine = create_engine(f"sqlite:///{os.path.join(self.script_dir, 'dataBase.db')}")
         Session = sessionmaker(bind=engine)
         session = Session()
         usuarios = session.query(Usuario).all()
@@ -526,20 +410,20 @@ class App:
         tk.Button(self.root, text="Eliminar Medicamento", command=eliminar_medicamento, height=2, width=50).pack(pady=5)
         tk.Button(self.root, text="Regresar", command=self.administar, height=2, width=50).pack(pady=20)
 
-
     def show_main(self):
-        if self.cap and self.cap.isOpened():  # Asegúrate de liberar la cámara solo si está abierta
-            self.cap.release()  # Libera la cámara web cuando regresas al menú principal
+        if hasattr(self, 'picam2') and self.picam2 is not None:
+            self.picam2.stop()
+            del self.picam2  # Libera la cámara cuando regresas al menú principal
+            self.picam2 = None  # Reinicia self.picam2 a None
         self.clear_frame()
         tk.Label(self.root, text="Bienvenido a PILBOT !", font=('Helvetica', 16)).pack(pady=20)
         tk.Button(self.root, text="Acceder", command=self.acceder, height=3, width=50).pack(pady=20)
-        tk.Button(self.root, text="Administar", command=self.administar, height=3, width=50).pack(pady=20)
+        tk.Button(self.root, text="Administrar", command=self.administar, height=3, width=50).pack(pady=20)
 
     def clear_frame(self):
         for widget in self.root.winfo_children():
             widget.destroy()
-        self.set_background("fondo.jpg")  # Restablece el fondo después de limpiar los widgets
-
+        self.set_background(os.path.join(self.script_dir, "fondo.jpg"))  # Restablece el fondo después de limpiar los widgets
 
 if __name__ == "__main__":
     root = tk.Tk()
